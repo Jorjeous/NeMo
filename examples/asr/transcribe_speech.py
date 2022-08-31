@@ -218,7 +218,7 @@ def main(cfg: TranscriptionConfig) -> TranscriptionConfig:
         return cfg
 
     if cfg.add_info and cfg.overwrite_transcripts:
-        logging.error(f"You cand overwrite if you trying to add data")
+        logging.warning(f"Nothing will be overwritten, as add_info set to True")
 
     # transcribe audio
     with autocast():
@@ -270,7 +270,7 @@ def main(cfg: TranscriptionConfig) -> TranscriptionConfig:
             with open(cfg.dataset_manifest, 'r') as fr:
                 for idx, line in enumerate(fr):
                     item = json.loads(line)
-                    item['pred_text' + mod_nam] = transcriptions[idx]
+                    item['pred_text_' + mod_nam] = transcriptions[idx]
                     f.write(json.dumps(item) + "\n")
 
     logging.info("Finished writing predictions !")
