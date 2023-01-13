@@ -178,10 +178,10 @@ class ConformerEncoder(NeuralModule, StreamingEncoder, Exportable):
         reduction_position=None,
         reduction_factor=1,
         ff_expansion_factor=4,
-        self_attention_model='rel_pos',
+        #self_attention_model='rel_pos',
         n_heads=4,
         att_context_size=None,
-        att_context_style='regular',
+        #att_context_style='regular',
         xscaling=True,
         untie_biases=True,
         pos_emb_max_len=5000,
@@ -199,14 +199,14 @@ class ConformerEncoder(NeuralModule, StreamingEncoder, Exportable):
         self.n_layers = n_layers
         self._feat_in = feat_in
         self.scale = math.sqrt(self.d_model)
-        self.att_context_style = att_context_style
+        #self.att_context_style = att_context_style
         self.subsampling_factor = subsampling_factor
-        self.self_attention_model = self_attention_model
+        #self.self_attention_model = self_attention_model
 
-        if att_context_size:
-            self.att_context_size = list(att_context_size)
-        else:
-            self.att_context_size = [-1, -1]
+        # if att_context_size:
+        #     self.att_context_size = list(att_context_size)
+        # else:
+        #     self.att_context_size = [-1, -1]
 
         if isinstance(conv_context_size, ListConfig):
             conv_context_size = list(conv_context_size)
@@ -229,25 +229,25 @@ class ConformerEncoder(NeuralModule, StreamingEncoder, Exportable):
             conv_context_size = [(conv_kernel_size - 1) // 2, (conv_kernel_size - 1) // 2]
         self.conv_context_size = conv_context_size
 
-        if att_context_style == "chunked_limited":
-            # the left context for self-attention in chunked_limited mode should be dividable by the right context
-            # right context=att_context_size[1]+1, and left_context=self.att_context_size[0]
-            if self.att_context_size[0] > 0 and self.att_context_size[0] % (self.att_context_size[1] + 1) > 0:
-                raise ValueError("att_context_size[0] % (att_context_size[1] + 1) should be zero!")
-            if self.att_context_size[1] < 0:
-                raise ValueError("Right context can not be unlimited for chunked_limited style!")
-            self.chunk_size = self.att_context_size[1] + 1
-
-            # left_chunks_num specifies the number of chunks to be visible by each chunk on the left side
-            if self.att_context_size[0] >= 0:
-                self.left_chunks_num = self.att_context_size[0] // self.chunk_size
-            else:
-                self.left_chunks_num = 100000
-
-        elif att_context_style == "regular":
-            self.chunk_size = None
-        else:
-            raise ValueError("Invalid att_context_style!")
+        # if att_context_style == "chunked_limited":
+        #     # the left context for self-attention in chunked_limited mode should be dividable by the right context
+        #     # right context=att_context_size[1]+1, and left_context=self.att_context_size[0]
+        #     if self.att_context_size[0] > 0 and self.att_context_size[0] % (self.att_context_size[1] + 1) > 0:
+        #         raise ValueError("att_context_size[0] % (att_context_size[1] + 1) should be zero!")
+        #     if self.att_context_size[1] < 0:
+        #         raise ValueError("Right context can not be unlimited for chunked_limited style!")
+        #     self.chunk_size = self.att_context_size[1] + 1
+        #
+        #     # left_chunks_num specifies the number of chunks to be visible by each chunk on the left side
+        #     if self.att_context_size[0] >= 0:
+        #         self.left_chunks_num = self.att_context_size[0] // self.chunk_size
+        #     else:
+        #         self.left_chunks_num = 100000
+        #
+        # elif att_context_style == "regular":
+        #     self.chunk_size = None
+        # else:
+        #     raise ValueError("Invalid att_context_style!")
 
         if xscaling:
             self.xscale = math.sqrt(d_model)
@@ -292,53 +292,53 @@ class ConformerEncoder(NeuralModule, StreamingEncoder, Exportable):
 
         self._feat_out = d_model
 
-        if not untie_biases and self_attention_model == "rel_pos":
-            d_head = d_model // n_heads
-            pos_bias_u = nn.Parameter(torch.Tensor(n_heads, d_head))
-            pos_bias_v = nn.Parameter(torch.Tensor(n_heads, d_head))
-            nn.init.zeros_(pos_bias_u)
-            nn.init.zeros_(pos_bias_v)
-        else:
-            pos_bias_u = None
-            pos_bias_v = None
+        # if not untie_biases and self_attention_model == "rel_pos":
+        #     d_head = d_model // n_heads
+        #     pos_bias_u = nn.Parameter(torch.Tensor(n_heads, d_head))
+        #     pos_bias_v = nn.Parameter(torch.Tensor(n_heads, d_head))
+        #     nn.init.zeros_(pos_bias_u)
+        #     nn.init.zeros_(pos_bias_v)
+        # else:
+        pos_bias_u = None
+        pos_bias_v = None
 
         self.pos_emb_max_len = pos_emb_max_len
         self.att_mask = None
-        if self_attention_model == "rel_pos":
-            self.pos_enc = RelPositionalEncoding(
-                d_model=d_model,
-                dropout_rate=dropout_pre_encoder,
-                max_len=pos_emb_max_len,
-                xscale=self.xscale,
-                dropout_rate_emb=dropout_emb,
-            )
-        elif self_attention_model == 'rel_pos_local_attn':
-            if max(att_context_size) <= 0:
-                raise ValueError("When using local attention, context size must be set > 0")
-            self.pos_enc = LocalAttRelPositionalEncoding(
-                att_context_size=att_context_size,
-                d_model=d_model,
-                dropout_rate=dropout,
-                max_len=pos_emb_max_len,
-                xscale=self.xscale,
-                dropout_rate_emb=dropout_emb,
-            )
-        elif self_attention_model == "abs_pos":
-            pos_bias_u = None
-            pos_bias_v = None
-            self.pos_enc = PositionalEncoding(
-                d_model=d_model, dropout_rate=dropout_pre_encoder, max_len=pos_emb_max_len, xscale=self.xscale
-            )
-        else:
-            raise ValueError(f"Not valid self_attention_model: '{self_attention_model}'!")
+        # if self_attention_model == "rel_pos":
+        #     self.pos_enc = RelPositionalEncoding(
+        #         d_model=d_model,
+        #         dropout_rate=dropout_pre_encoder,
+        #         max_len=pos_emb_max_len,
+        #         xscale=self.xscale,
+        #         dropout_rate_emb=dropout_emb,
+        #     )
+        # elif self_attention_model == 'rel_pos_local_attn':
+        #     if max(att_context_size) <= 0:
+        #         raise ValueError("When using local attention, context size must be set > 0")
+        #     self.pos_enc = LocalAttRelPositionalEncoding(
+        #         att_context_size=att_context_size,
+        #         d_model=d_model,
+        #         dropout_rate=dropout,
+        #         max_len=pos_emb_max_len,
+        #         xscale=self.xscale,
+        #         dropout_rate_emb=dropout_emb,
+        #     )
+        # elif self_attention_model == "abs_pos":
+        #     pos_bias_u = None
+        #     pos_bias_v = None
+        #     self.pos_enc = PositionalEncoding(
+        #         d_model=d_model, dropout_rate=dropout_pre_encoder, max_len=pos_emb_max_len, xscale=self.xscale
+        #     )
+        # else:
+        #     raise ValueError(f"Not valid self_attention_model: '{self_attention_model}'!")
 
         self.layers = nn.ModuleList()
         for i in range(n_layers):
             layer = ConformerLayer(
                 d_model=d_model,
                 d_ff=d_ff,
-                self_attention_model=self_attention_model,
-                n_heads=n_heads,
+                #self_attention_model=self_attention_model,
+                #n_heads=n_heads,
                 conv_kernel_size=conv_kernel_size,
                 conv_norm_type=conv_norm_type,
                 conv_context_size=self.conv_context_size,
@@ -346,7 +346,7 @@ class ConformerEncoder(NeuralModule, StreamingEncoder, Exportable):
                 dropout_att=dropout_att,
                 pos_bias_u=pos_bias_u,
                 pos_bias_v=pos_bias_v,
-                att_context_size=self.att_context_size,
+                #att_context_size=self.att_context_size,
             )
             self.layers.append(layer)
 
@@ -669,51 +669,51 @@ class ConformerEncoder(NeuralModule, StreamingEncoder, Exportable):
                 Defaults to None.
         """
 
-        if att_context_size:
-            att_context_size = list(att_context_size)
-        else:
-            att_context_size = self._cfg.att_context_size
-
-        if self_attention_model is None:
-            self_attention_model = self._cfg.self_attention_model
-
-        if self_attention_model == 'rel_pos_local_attn' and max(att_context_size) <= 0:
-            raise ValueError("When using local attention, context size must be set > 0")
-
-        if self_attention_model == "rel_pos":
-            self.att_mask = None
-            new_pos_enc = RelPositionalEncoding(
-                d_model=self._cfg.d_model,
-                dropout_rate=self._cfg.dropout,
-                max_len=self._cfg.pos_emb_max_len,
-                xscale=self.xscale,
-                dropout_rate_emb=self._cfg.dropout_emb,
-            )
-        elif self_attention_model == 'rel_pos_local_attn':
-            new_pos_enc = LocalAttRelPositionalEncoding(
-                att_context_size=att_context_size,
-                d_model=self._cfg.d_model,
-                dropout_rate=self._cfg.dropout,
-                max_len=self._cfg.pos_emb_max_len,
-                xscale=self.xscale,
-                dropout_rate_emb=self._cfg.dropout_emb,
-            )
-        elif self_attention_model == "abs_pos":
-            new_pos_enc = PositionalEncoding(
-                d_model=self._cfg.d_model,
-                dropout_rate=self._cfg.dropout,
-                max_len=self._cfg.pos_emb_max_len,
-                xscale=self.xscale,
-            )
-        else:
-            raise ValueError(f"Not valid self_attention_model: '{self_attention_model}'!")
+        # if att_context_size:
+        #     att_context_size = list(att_context_size)
+        # else:
+        #     att_context_size = self._cfg.att_context_size
+        #
+        # if self_attention_model is None:
+        #     self_attention_model = self._cfg.self_attention_model
+        #
+        # if self_attention_model == 'rel_pos_local_attn' and max(att_context_size) <= 0:
+        #     raise ValueError("When using local attention, context size must be set > 0")
+        #
+        # if self_attention_model == "rel_pos":
+        #     self.att_mask = None
+        #     new_pos_enc = RelPositionalEncoding(
+        #         d_model=self._cfg.d_model,
+        #         dropout_rate=self._cfg.dropout,
+        #         max_len=self._cfg.pos_emb_max_len,
+        #         xscale=self.xscale,
+        #         dropout_rate_emb=self._cfg.dropout_emb,
+        #     )
+        # elif self_attention_model == 'rel_pos_local_attn':
+        #     new_pos_enc = LocalAttRelPositionalEncoding(
+        #         att_context_size=att_context_size,
+        #         d_model=self._cfg.d_model,
+        #         dropout_rate=self._cfg.dropout,
+        #         max_len=self._cfg.pos_emb_max_len,
+        #         xscale=self.xscale,
+        #         dropout_rate_emb=self._cfg.dropout_emb,
+        #     )
+        # elif self_attention_model == "abs_pos":
+        #     new_pos_enc = PositionalEncoding(
+        #         d_model=self._cfg.d_model,
+        #         dropout_rate=self._cfg.dropout,
+        #         max_len=self._cfg.pos_emb_max_len,
+        #         xscale=self.xscale,
+        #     )
+        # else:
+        #     raise ValueError(f"Not valid self_attention_model: '{self_attention_model}'!")
 
         if device is not None:
             new_pos_enc = new_pos_enc.to(device=device)
         del self.pos_enc
         self.pos_enc = new_pos_enc
-        self.self_attention_model = self_attention_model
-        self.att_context_size = att_context_size
+        #self.self_attention_model = self_attention_model
+        #self.att_context_size = att_context_size
         self.set_max_audio_length(self.pos_emb_max_len)
 
         for name, m in self.named_modules():
