@@ -119,7 +119,7 @@ model:
     #n_heads: 8 # may need to be lower for smaller d_models
     # [left, right] specifies the number of steps to be seen from left and right of each step in self-attention
     #att_context_size: [-1, -1] # -1 means unlimited context
-    #att_context_style: regular # regular or chunked_limited
+    #att_context_style: regular # regular or chunked_limited each step in self-attenti
     xscaling: true # scales up the input embeddings by sqrt(d_model)
     untie_biases: true # unties the biases of the TransformerXL layers
     pos_emb_max_len: 5000
@@ -156,7 +156,6 @@ model:
     # scheduler setup
     sched:
       name: CosineAnnealing
-      d_model: ${model.encoder.d_model}
       # scheduler config override
       warmup_steps: 10000
       warmup_ratio: null
