@@ -174,7 +174,7 @@ class ConformerLayer(torch.nn.Module, AdapterModuleMixin, AccessMixin):
         #     )
         # else:
         #     x = None
-        # residual = residual + self.dropout(x)
+        residual = residual + self.dropout(x)
 
         if self.is_adapter_available():
             # Call the MHA adapters

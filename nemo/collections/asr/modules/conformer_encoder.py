@@ -199,7 +199,7 @@ class ConformerEncoder(NeuralModule, StreamingEncoder, Exportable):
         self.n_layers = n_layers
         self._feat_in = feat_in
         self.scale = math.sqrt(self.d_model)
-        #self.att_context_style = att_context_style
+        self.att_context_style = att_context_style
         self.subsampling_factor = subsampling_factor
         #self.self_attention_model = self_attention_model
 
@@ -229,25 +229,25 @@ class ConformerEncoder(NeuralModule, StreamingEncoder, Exportable):
             conv_context_size = [(conv_kernel_size - 1) // 2, (conv_kernel_size - 1) // 2]
         self.conv_context_size = conv_context_size
 
-        # if att_context_style == "chunked_limited":
-        #     # the left context for self-attention in chunked_limited mode should be dividable by the right context
-        #     # right context=att_context_size[1]+1, and left_context=self.att_context_size[0]
-        #     if self.att_context_size[0] > 0 and self.att_context_size[0] % (self.att_context_size[1] + 1) > 0:
-        #         raise ValueError("att_context_size[0] % (att_context_size[1] + 1) should be zero!")
-        #     if self.att_context_size[1] < 0:
-        #         raise ValueError("Right context can not be unlimited for chunked_limited style!")
-        #     self.chunk_size = self.att_context_size[1] + 1
-        #
-        #     # left_chunks_num specifies the number of chunks to be visible by each chunk on the left side
-        #     if self.att_context_size[0] >= 0:
-        #         self.left_chunks_num = self.att_context_size[0] // self.chunk_size
-        #     else:
-        #         self.left_chunks_num = 100000
-        #
-        # elif att_context_style == "regular":
-        #     self.chunk_size = None
-        # else:
-        #     raise ValueError("Invalid att_context_style!")
+        if att_context_style == "chunked_limited":
+            # the left context for self-attention in chunked_limited mode should be dividable by the right context
+            # right context=att_context_size[1]+1, and left_context=self.att_context_size[0]
+            if self.att_context_size[0] > 0 and self.att_context_size[0] % (self.att_context_size[1] + 1) > 0:
+                raise ValueError("att_context_size[0] % (att_context_size[1] + 1) should be zero!")
+            if self.att_context_size[1] < 0:
+                raise ValueError("Right context can not be unlimited for chunked_limited style!")
+            self.chunk_size = self.att_context_size[1] + 1
+
+            # left_chunks_num specifies the number of chunks to be visible by each chunk on the left side
+            if self.att_context_size[0] >= 0:
+                self.left_chunks_num = self.att_context_size[0] // self.chunk_size
+            else:
+                self.left_chunks_num = 100000
+
+        elif att_context_style == "regular":
+            self.chunk_size = None
+        else:
+            raise ValueError("Invalid att_context_style!")
 
         if xscaling:
             self.xscale = math.sqrt(d_model)
