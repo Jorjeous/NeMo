@@ -114,19 +114,9 @@ class MultiHeadAttention(nn.Module):
         returns:
             value (torch.Tensor): transformed `value` (batch, time2, d_model) weighted by the attention scores
         """
-        n_batch = value.size(0)
-        if mask is not None:
-            mask = mask.unsqueeze(1)  # (batch, 1, time1, time2)
-            scores = scores.masked_fill(mask, -10000.0)
-            attn = torch.softmax(scores, dim=-1).masked_fill(mask, 0.0)  # (batch, head, time1, time2)
-        else:
-            attn = torch.softmax(scores, dim=-1)  # (batch, head, time1, time2)
 
-        p_attn = self.dropout(attn)
-        x = torch.matmul(p_attn, value)  # (batch, head, time1, d_k)
-        x = x.transpose(1, 2).reshape(n_batch, -1, self.h * self.d_k)  # (batch, time1, d_model)
 
-        return self.linear_out(x)  # (batch, time1, d_model)
+        return 0  # (batch, time1, d_model)
 
     def forward(self, query, key, value, mask, pos_emb=None, cache=None, cache_next=None):
         """Compute 'Scaled Dot Product Attention'.
@@ -141,18 +131,8 @@ class MultiHeadAttention(nn.Module):
         returns:
             output (torch.Tensor): transformed `value` (batch, time1, d_model) weighted by the query dot key attention
         """
-        key, value, query = self.update_cache(key=key, value=value, query=query, cache=cache, cache_next=cache_next)
 
-        if torch.is_autocast_enabled():
-            query, key, value = query.to(torch.float32), key.to(torch.float32), value.to(torch.float32)
-
-        # temporary until we solve this more gracefully
-        with avoid_float16_autocast_context():
-            q, k, v = self.forward_qkv(query, key, value)
-            scores = torch.matmul(q, k.transpose(-2, -1)) / self.s_d_k
-            out = self.forward_attention(v, scores, mask)
-
-        return out
+        return 0
 
     def update_cache(self, key, value, query, cache, cache_next):
         if cache is not None:
@@ -200,13 +180,8 @@ class RelPositionMultiHeadAttention(MultiHeadAttention):
         Args:
             x (torch.Tensor): (batch, nheads, time, 2*time-1)
         """
-        b, h, qlen, pos_len = x.size()  # (b, h, t1, t2)
-        # need to add a column of zeros on the left side of last dimension to perform the relative shifting
-        x = torch.nn.functional.pad(x, pad=(1, 0))  # (b, h, t1, t2+1)
-        x = x.view(b, h, -1, qlen)  # (b, h, t2+1, t1)
-        # need to drop the first row
-        x = x[:, :, 1:].view(b, h, qlen, pos_len)  # (b, h, t1, t2)
-        return torch.zeros_like(x)
+
+        return 0
 
     def forward(self, query, key, value, mask, pos_emb, cache=None, cache_next=None):
         """Compute 'Scaled Dot Product Attention' with rel. positional encoding.
@@ -221,43 +196,8 @@ class RelPositionMultiHeadAttention(MultiHeadAttention):
         Returns:
             output (torch.Tensor): transformed `value` (batch, time1, d_model) weighted by the query dot key attention
         """
-        key, value, query = self.update_cache(key=key, value=value, query=query, cache=cache, cache_next=cache_next)
 
-        if torch.is_autocast_enabled():
-            query, key, value = query.to(torch.float32), key.to(torch.float32), value.to(torch.float32)
-
-        # temporary until we solve this more gracefully
-        with avoid_float16_autocast_context():
-            q, k, v = self.forward_qkv(query, key, value)
-            q = q.transpose(1, 2)  # (batch, time1, head, d_k)
-
-            n_batch_pos = pos_emb.size(0)
-            p = self.linear_pos(pos_emb).view(n_batch_pos, -1, self.h, self.d_k)
-            p = p.transpose(1, 2)  # (batch, head, time1, d_k)
-
-            # (batch, head, time1, d_k)
-            q_with_bias_u = (q + self.pos_bias_u).transpose(1, 2)
-            # (batch, head, time1, d_k)
-            q_with_bias_v = (q + self.pos_bias_v).transpose(1, 2)
-
-            # compute attention score
-            # first compute matrix a and matrix c
-            # as described in https://arxiv.org/abs/1901.02860 Section 3.3
-            # (batch, head, time1, time2)
-            matrix_ac = torch.matmul(q_with_bias_u, k.transpose(-2, -1))
-
-            # compute matrix b and matrix d
-            # (batch, head, time1, time2)
-            matrix_bd = torch.matmul(q_with_bias_v, p.transpose(-2, -1))
-            matrix_bd = self.rel_shift(matrix_bd)
-            # drops extra elements in the matrix_bd to match the matrix_ac's size
-            matrix_bd = matrix_bd[:, :, :, : matrix_ac.size(-1)]
-
-            scores = (matrix_ac + matrix_bd) / self.s_d_k  # (batch, head, time1, time2)
-
-            out = self.forward_attention(v, scores, mask)
-
-        return out
+        return 0
 
 
 class RelPositionMultiHeadAttentionLongformer(RelPositionMultiHeadAttention):
@@ -299,114 +239,17 @@ class RelPositionMultiHeadAttentionLongformer(RelPositionMultiHeadAttention):
         Returns:
             output (torch.Tensor): transformed `value` (batch, time1, d_model) weighted by the query dot key attention
         """
-
-        key, value, query = self.update_cache(key=key, value=value, query=query, cache=cache, cache_next=cache_next)
-
-        if torch.is_autocast_enabled():
-            query, key, value = query.to(torch.float32), key.to(torch.float32), value.to(torch.float32)
-
-        # temporary until we solve this more gracefully
-        with avoid_float16_autocast_context():
-            q, k, v = self.forward_qkv(query, key, value)
-            n_batch, _, T, _ = q.size()
-
-            w = max(self.att_context_size[0], self.att_context_size[1])
-            if w <= 0:
-                raise ValueError("When using local attention, context size must be set > 0")
-            pad_len = (2 * w - T % (2 * w)) % (2 * w)  # pad time to 2w
-            q = F.pad(q, (0, 0, 0, pad_len))  # (batch, head, time, size)
-            k = F.pad(k, (0, 0, 0, pad_len))  # (batch, head, time, size)
-            v = F.pad(v, (0, 0, 0, pad_len))  # (batch, head, time, size)
-            mask = F.pad(pad_mask, (0, pad_len), value=1.0)
-
-            q_with_bias_u = q + self.pos_bias_u.unsqueeze(1)  # (batch, head, time, size)
-            q_with_bias_v = q + self.pos_bias_v.unsqueeze(1)  # (batch, head, time, size)
-
-            diagonal_matrix_ac = self.sliding_chunks_matmul_qk(
-                q_with_bias_u, k, w, padding_value=0.0
-            )  # (batch, head, time, 2w + 1)
-
-            # add relative positional embedding
-
-            n_batch_pos = pos_emb.size(0)
-            p = self.linear_pos(pos_emb).view(n_batch_pos, -1, self.h, self.d_k).transpose(1, 2)
-            # (batch, head, 2w, size)
-            diagonal_matrix_bd = torch.matmul(q_with_bias_v, p.transpose(-2, -1))
-            # (batch, head, time, 2w + 1)
-
-            start_pos = w - self.att_context_size[0]
-            end_pos = w + self.att_context_size[1]
-
-            diagonal_matrix_ac[:, :, :, : self.att_context_size[0]] += diagonal_matrix_bd[
-                :, :, :, : self.att_context_size[0]
-            ]
-            diagonal_matrix_ac[:, :, :, -(self.att_context_size[1] + 1) :] += diagonal_matrix_bd[
-                :, :, :, self.att_context_size[0] :
-            ]
-            scores = diagonal_matrix_ac / self.s_d_k
-            # (batch, head, time, 2w + 1)
-
-            # mask invalid positions
-            scores[:, :, :, :start_pos] = -10000.0
-            scores[:, :, :, end_pos + 1 :] = -10000.0
-
-            # This implementation is fast and takes very little memory because num_heads x hidden_size = 1
-            # from (bsz x seq_len) to (bsz x num_heads x seqlen x hidden_size)
-            mask = mask.unsqueeze(dim=1).unsqueeze(dim=-1)
-            # cast to float/half then replace 1's with -inf
-            float_mask = mask.type_as(scores).masked_fill(mask, -10000.0)
-            ones = float_mask.new_ones(size=float_mask.size())  # tensor of ones
-            # diagonal mask with zeros everywhere and -inf inplace of padding
-            d_mask = self.sliding_chunks_matmul_qk(ones, float_mask, w, padding_value=0.0)
-            # (batch, head, time, 2w + 1)
-
-            scores += d_mask
-
-            attn = torch.softmax(scores, dim=-1).masked_fill(mask, 0.0)
-            p_attn = self.dropout(attn)
-            # (batch, head, time, 2w + 1)
-
-            x = self.sliding_chunks_matmul_pv(p_attn, v, w).reshape(n_batch, -1, self.h * self.d_k)[:, :T]
-            # (batch, time, size)
-
-        return self.linear_out(x)
+        return 0
 
     # Longformer implementation for overlap case adapted for arbitrary left and right chunk size
     # https://github.com/allenai/longformer/blob/master/longformer/sliding_chunks.py
     def _skew(self, x: torch.Tensor, direction: List[int], padding_value: float) -> torch.Tensor:
-        """Convert diagonals into columns (or columns into diagonals depending on `direction`
 
-        Args:
-            x (torch.Tensor): (batch x head, chunk_count, 2w, 2w)
-            direction (List[int]): padding directions
-            padding_value (float): value to pad with
-
-        Returns:
-            output (torch.Tensor): (batch x head, chunk_count, 2w, 2w + 1)
-
-        """
-        x_padded = F.pad(x, direction, value=padding_value)
-        x_padded = x_padded.view(*x_padded.size()[:-2], x_padded.size(-1), x_padded.size(-2))
-        return x_padded
+        return 0
 
     def _skew2(self, x: torch.Tensor, padding_value: float) -> torch.Tensor:
-        """Shift every row 1 step to right converting columns into diagonals
 
-        Args:
-            x (torch.Tensor): (batch x head, chunks_count + 1, w, 2w + 1)
-            padding_value (float): value to pad with
-
-        Returns:
-            output (torch.Tensor): (batch x head, chunks_count + 1, w, 3w)
-        """
-        # X = B x C x M x L
-        B, C, M, L = x.size()
-        x = F.pad(x, (0, M + 1), value=padding_value)  # B x C x M x (L+M+1)
-        x = x.view(B, C, -1)  # B x C x ML+MM+M
-        x = x[:, :, :-M]  # B x C x ML+MM
-        x = x.view(B, C, M, M + L)  # B x C, M x L+M
-        x = x[:, :, :, :-1]
-        return x
+        return 0
 
     def _chunk_overlap(self, x: torch.Tensor, w: int) -> torch.Tensor:
         """Convert into overlapping chunks.

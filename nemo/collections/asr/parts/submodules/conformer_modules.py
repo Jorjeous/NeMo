@@ -18,11 +18,11 @@ from torch import nn as nn
 from torch.nn import LayerNorm
 
 from nemo.collections.asr.parts.submodules.causal_convs import CausalConv1D
-# from nemo.collections.asr.parts.submodules.multi_head_attention import (
-#     MultiHeadAttention,
-#     RelPositionMultiHeadAttention,
-#     RelPositionMultiHeadAttentionLongformer,
-# )
+from nemo.collections.asr.parts.submodules.multi_head_attention import (
+    MultiHeadAttention,
+    RelPositionMultiHeadAttention,
+    RelPositionMultiHeadAttentionLongformer,
+)
 from nemo.collections.asr.parts.utils.activations import Swish
 from nemo.collections.common.parts import adapter_modules
 from nemo.collections.common.parts.utils import activation_registry
@@ -81,7 +81,7 @@ class ConformerLayer(torch.nn.Module, AdapterModuleMixin, AccessMixin):
         # multi-headed self-attention module
         # self.norm_self_att = LayerNorm(d_model)
         # MHA_max_cache_len = att_context_size[0]
-
+        #
         # if self_attention_model == 'rel_pos':
         #     self.self_attn = RelPositionMultiHeadAttention(
         #         n_head=n_heads,
@@ -174,18 +174,18 @@ class ConformerLayer(torch.nn.Module, AdapterModuleMixin, AccessMixin):
         #     )
         # else:
         #     x = None
-        residual = residual + self.dropout(x)
+        # residual = residual + self.dropout(x)
 
-        # if self.is_adapter_available():
-        #     # Call the MHA adapters
-        #     pack_ip = {
-        #         'x': residual,
-        #         'loc': 'mha',
-        #         'att_mask': att_mask,
-        #         'pos_emb': pos_emb,
-        #     }
-        #     pack_ip = self.forward_enabled_adapters(pack_ip)
-        #     residual = pack_ip['x']
+        if self.is_adapter_available():
+            # Call the MHA adapters
+            pack_ip = {
+                'x': residual,
+                'loc': 'mha',
+                'att_mask': att_mask,
+                'pos_emb': pos_emb,
+            }
+            pack_ip = self.forward_enabled_adapters(pack_ip)
+            residual = pack_ip['x']
 
         x = self.norm_conv(residual)
         x = self.conv(x, pad_mask=pad_mask, cache=cache_last_time, cache_next=cache_last_time_next)
@@ -249,17 +249,17 @@ class ConformerLayer(torch.nn.Module, AdapterModuleMixin, AccessMixin):
         if isinstance(adapter_module, adapter_modules.LinearAdapter) and loc == 'post':
             output = adapter_strategy(x, adapter_module, module=self)
 
-        # elif isinstance(adapter_module, MultiHeadAttention) and loc == 'mha':
-        #     if self.self_attention_model == 'rel_pos':
-        #         x = dict(query=x, key=x, value=x, mask=att_mask, pos_emb=pos_emb)
-        #         output = adapter_strategy(x, adapter_module, module=self)
-        #
-        #     elif self.self_attention_model == 'abs_pos':
-        #         x = dict(query=x, key=x, value=x, mask=att_mask)
-        #         output = adapter_strategy(x, adapter_module, module=self)
-        #
-        #     else:
-        #         raise ValueError(f"Unsupported value of self_attention_model , provided {self.self_attention_model}!")
+        elif isinstance(adapter_module, MultiHeadAttention) and loc == 'mha':
+            if self.self_attention_model == 'rel_pos':
+                x = dict(query=x, key=x, value=x, mask=att_mask, pos_emb=pos_emb)
+                output = adapter_strategy(x, adapter_module, module=self)
+
+            elif self.self_attention_model == 'abs_pos':
+                x = dict(query=x, key=x, value=x, mask=att_mask)
+                output = adapter_strategy(x, adapter_module, module=self)
+
+            else:
+                raise ValueError(f"Unsupported value of self_attention_model , provided {self.self_attention_model}!")
 
         else:
             # No adapter compatible, skip
