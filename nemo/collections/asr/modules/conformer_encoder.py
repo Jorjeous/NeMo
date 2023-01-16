@@ -76,35 +76,42 @@ class ConformerEncoder(NeuralModule, StreamingEncoder, Exportable):
             Defaults to 1.
         ff_expansion_factor (int): the expansion factor in feed forward layers
             Defaults to 4.
-        self_attention_model (str): type of the attention layer and positional encoding
-            'rel_pos': relative positional embedding and Transformer-XL
-            'rel_pos_local_attn': relative positional embedding and Transformer-XL with local attention using
-                overlapping chunks. Attention context is determined by att_context_size parameter.
             'abs_pos': absolute positional embedding and Transformer
             Default is rel_pos.
         pos_emb_max_len (int): the maximum length of positional embeddings
             Defaults to 5000
-        n_heads (int): number of heads in multi-headed attention layers
-            Defaults to 4.
-        att_context_size (List[int]): List of 2 ints corresponding to left and right attention context sizes,
-            or None for full context.
-            Defaults to None.
-        xscaling (bool): enables scaling the inputs to the multi-headed attention layers by sqrt(d_model)
-            Defaults to True.
         untie_biases (bool): whether to not share (untie) the bias weights between layers of Transformer-XL
             Defaults to True.
         conv_kernel_size (int): the size of the convolutions in the convolutional modules
             Defaults to 31.
         conv_norm_type (str): the type of the normalization in the convolutional modules
             Defaults to 'batch_norm'.
-        dropout (float): the dropout rate used in all layers except the attention layers
-            Defaults to 0.1.
+
         dropout_pre_encoder (float): the dropout rate used before the encoder
             Defaults to 0.1.
         dropout_emb (float): the dropout rate used for the positional embeddings
             Defaults to 0.1.
+
+
         dropout_att (float): the dropout rate used for the attention layer
             Defaults to 0.0.
+
+        dropout (float): the dropout rate used in all layers except the attention layers
+            Defaults to 0.1.
+
+        xscaling (bool): enables scaling the inputs to the multi-headed attention layers by sqrt(d_model)
+            Defaults to True.
+
+        att_context_size (List[int]): List of 2 ints corresponding to left and right attention context sizes,
+            or None for full context.
+            Defaults to None
+        n_heads (int): number of heads in multi-headed attention layers
+            Defaults to 4.
+
+        self_attention_model (str): type of the attention layer and positional encoding
+            'rel_pos': relative positional embedding and Transformer-XL
+            'rel_pos_local_attn': relative positional embedding and Transformer-XL with local attention using
+                overlapping chunks. Attention context is determined by att_context_size parameter.
     """
 
     def input_example(self, max_batch=1, max_dim=256):
@@ -292,45 +299,46 @@ class ConformerEncoder(NeuralModule, StreamingEncoder, Exportable):
 
         self._feat_out = d_model
 
-        if not untie_biases and self_attention_model == "rel_pos":
-            d_head = d_model // n_heads
-            pos_bias_u = nn.Parameter(torch.Tensor(n_heads, d_head))
-            pos_bias_v = nn.Parameter(torch.Tensor(n_heads, d_head))
-            nn.init.zeros_(pos_bias_u)
-            nn.init.zeros_(pos_bias_v)
-        else:
-            pos_bias_u = None
-            pos_bias_v = None
+        # if not untie_biases and self_attention_model == "rel_pos":
+        #     d_head = d_model // n_heads
+        #     pos_bias_u = nn.Parameter(torch.Tensor(n_heads, d_head))
+        #     pos_bias_v = nn.Parameter(torch.Tensor(n_heads, d_head))
+        #     nn.init.zeros_(pos_bias_u)
+        #     nn.init.zeros_(pos_bias_v)
+        # else:
+        pos_bias_u = None
+        pos_bias_v = None
 
         self.pos_emb_max_len = pos_emb_max_len
         self.att_mask = None
-        if self_attention_model == "rel_pos":
-            self.pos_enc = RelPositionalEncoding(
-                d_model=d_model,
-                dropout_rate=dropout_pre_encoder,
-                max_len=pos_emb_max_len,
-                xscale=self.xscale,
-                dropout_rate_emb=dropout_emb,
-            )
-        elif self_attention_model == 'rel_pos_local_attn':
-            if max(att_context_size) <= 0:
-                raise ValueError("When using local attention, context size must be set > 0")
-            self.pos_enc = LocalAttRelPositionalEncoding(
-                att_context_size=att_context_size,
-                d_model=d_model,
-                dropout_rate=dropout,
-                max_len=pos_emb_max_len,
-                xscale=self.xscale,
-                dropout_rate_emb=dropout_emb,
-            )
-        elif self_attention_model == "abs_pos":
-            pos_bias_u = None
-            pos_bias_v = None
-            self.pos_enc = PositionalEncoding(
-                d_model=d_model, dropout_rate=dropout_pre_encoder, max_len=pos_emb_max_len, xscale=self.xscale
-            )
-        else:
-            raise ValueError(f"Not valid self_attention_model: '{self_attention_model}'!")
+
+        # if self_attention_model == "rel_pos":
+        #     self.pos_enc = RelPositionalEncoding(
+        #         d_model=d_model,
+        #         dropout_rate=dropout_pre_encoder,
+        #         max_len=pos_emb_max_len,
+        #         xscale=self.xscale,
+        #         dropout_rate_emb=dropout_emb,
+        #     )
+        # elif self_attention_model == 'rel_pos_local_attn':
+        #     if max(att_context_size) <= 0:
+        #         raise ValueError("When using local attention, context size must be set > 0")
+        #     self.pos_enc = LocalAttRelPositionalEncoding(
+        #         att_context_size=att_context_size,
+        #         d_model=d_model,
+        #         dropout_rate=dropout,
+        #         max_len=pos_emb_max_len,
+        #         xscale=self.xscale,
+        #         dropout_rate_emb=dropout_emb,
+        #     )
+        # elif self_attention_model == "abs_pos":
+        #     pos_bias_u = None
+        #     pos_bias_v = None
+        #     self.pos_enc = PositionalEncoding(
+        #         d_model=d_model, dropout_rate=dropout_pre_encoder, max_len=pos_emb_max_len, xscale=self.xscale
+        #     )
+        # else:
+        #     raise ValueError(f"Not valid self_attention_model: '{self_attention_model}'!")
 
         self.layers = nn.ModuleList()
         for i in range(n_layers):
@@ -384,28 +392,28 @@ class ConformerEncoder(NeuralModule, StreamingEncoder, Exportable):
         device = next(self.parameters()).device
         self.pos_enc.extend_pe(max_audio_length, device)
 
-        if self.self_attention_model != "rel_pos_local_attn":
-            att_mask = torch.ones(1, max_audio_length, max_audio_length, dtype=torch.bool, device=device)
-            if self.chunk_size is None:
-                if self.att_context_size[0] >= 0:
-                    att_mask = att_mask.triu(diagonal=-self.att_context_size[0])
-                if self.att_context_size[1] >= 0:
-                    att_mask = att_mask.tril(diagonal=self.att_context_size[1])
-            else:
-                chunk_idx = torch.arange(0, max_audio_length, dtype=torch.int, device=att_mask.device)
-                chunk_idx = torch.div(chunk_idx, self.chunk_size, rounding_mode="trunc")
-                diff_chunks = chunk_idx.unsqueeze(1) - chunk_idx.unsqueeze(0)
-                chunked_limited_mask = torch.logical_and(
-                    torch.le(diff_chunks, self.left_chunks_num), torch.ge(diff_chunks, 0)
-                )
-                att_mask = torch.logical_and(att_mask, chunked_limited_mask.unsqueeze(0))
-
-            if hasattr(self, 'att_mask'):
-                self.att_mask = att_mask
-            else:
-                self.register_buffer('att_mask', att_mask, persistent=False)
-        else:
-            self.att_mask = None
+        # if self.self_attention_model != "rel_pos_local_attn":
+        #     att_mask = torch.ones(1, max_audio_length, max_audio_length, dtype=torch.bool, device=device)
+        #     if self.chunk_size is None:
+        #         if self.att_context_size[0] >= 0:
+        #             att_mask = att_mask.triu(diagonal=-self.att_context_size[0])
+        #         if self.att_context_size[1] >= 0:
+        #             att_mask = att_mask.tril(diagonal=self.att_context_size[1])
+        #     else:
+        #         chunk_idx = torch.arange(0, max_audio_length, dtype=torch.int, device=att_mask.device)
+        #         chunk_idx = torch.div(chunk_idx, self.chunk_size, rounding_mode="trunc")
+        #         diff_chunks = chunk_idx.unsqueeze(1) - chunk_idx.unsqueeze(0)
+        #         chunked_limited_mask = torch.logical_and(
+        #             torch.le(diff_chunks, self.left_chunks_num), torch.ge(diff_chunks, 0)
+        #         )
+        #         att_mask = torch.logical_and(att_mask, chunked_limited_mask.unsqueeze(0))
+        #
+        #     if hasattr(self, 'att_mask'):
+        #         self.att_mask = att_mask
+        #     else:
+        #         self.register_buffer('att_mask', att_mask, persistent=False)
+        # else:
+        self.att_mask = None
 
     @typecheck()
     def forward(self, audio_signal, length, cache_last_channel=None, cache_last_time=None):
@@ -507,18 +515,18 @@ class ConformerEncoder(NeuralModule, StreamingEncoder, Exportable):
             padding_length.size(0), -1
         ) < padding_length.unsqueeze(-1)
 
-        if self.att_mask is not None:
-            # pad_mask_for_att_mask is the mask which helps to ignore paddings
-            pad_mask_for_att_mask = pad_mask.unsqueeze(1).repeat([1, max_audio_length, 1])
-            pad_mask_for_att_mask = torch.logical_and(pad_mask_for_att_mask, pad_mask_for_att_mask.transpose(1, 2))
-            # att_mask is the masking to be used by the MHA layers to ignore the tokens not supposed to be visible
-            att_mask = self.att_mask[:, :max_audio_length, :max_audio_length]
-            # paddings should also get ignored, so pad_mask_for_att_mask is used to ignore their corresponding scores
-            att_mask = torch.logical_and(pad_mask_for_att_mask, att_mask.to(pad_mask_for_att_mask.device))
-
-            att_mask = ~att_mask
-        else:
-            att_mask = None
+        # if self.att_mask is not None:
+        #     # pad_mask_for_att_mask is the mask which helps to ignore paddings
+        #     pad_mask_for_att_mask = pad_mask.unsqueeze(1).repeat([1, max_audio_length, 1])
+        #     pad_mask_for_att_mask = torch.logical_and(pad_mask_for_att_mask, pad_mask_for_att_mask.transpose(1, 2))
+        #     # att_mask is the masking to be used by the MHA layers to ignore the tokens not supposed to be visible
+        #     att_mask = self.att_mask[:, :max_audio_length, :max_audio_length]
+        #     # paddings should also get ignored, so pad_mask_for_att_mask is used to ignore their corresponding scores
+        #     att_mask = torch.logical_and(pad_mask_for_att_mask, att_mask.to(pad_mask_for_att_mask.device))
+        #
+        #     att_mask = ~att_mask
+        # else:
+        att_mask = None
 
         pad_mask = ~pad_mask
 
