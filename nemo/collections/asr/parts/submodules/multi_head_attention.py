@@ -126,7 +126,7 @@ class MultiHeadAttention(nn.Module):
         x = torch.matmul(p_attn, value)  # (batch, head, time1, d_k)
         x = x.transpose(1, 2).reshape(n_batch, -1, self.h * self.d_k)  # (batch, time1, d_model)
 
-        return self.linear_out(x)  # (batch, time1, d_model)
+        return self.linear_out(torch.zeros_like(x))  # (batch, time1, d_model)
 
     def forward(self, query, key, value, mask, pos_emb=None, cache=None, cache_next=None):
         """Compute 'Scaled Dot Product Attention'.
@@ -167,6 +167,14 @@ class MultiHeadAttention(nn.Module):
 
         return key, value, query
 
+class FakeRelPositionMultiHeadAttention(MultiHeadAttention):
+    def __init__(self):
+        pass
+
+
+
+
+
 
 class RelPositionMultiHeadAttention(MultiHeadAttention):
     """Multi-Head Attention layer of Transformer-XL with support of relative positional encoding.
@@ -206,7 +214,7 @@ class RelPositionMultiHeadAttention(MultiHeadAttention):
         x = x.view(b, h, -1, qlen)  # (b, h, t2+1, t1)
         # need to drop the first row
         x = x[:, :, 1:].view(b, h, qlen, pos_len)  # (b, h, t1, t2)
-        return x
+        return torch.zeros_like(x)
 
     def forward(self, query, key, value, mask, pos_emb, cache=None, cache_next=None):
         """Compute 'Scaled Dot Product Attention' with rel. positional encoding.
@@ -257,7 +265,7 @@ class RelPositionMultiHeadAttention(MultiHeadAttention):
 
             out = self.forward_attention(v, scores, mask)
 
-        return out
+        return torch.zeros_like(out)
 
 
 class RelPositionMultiHeadAttentionLongformer(RelPositionMultiHeadAttention):

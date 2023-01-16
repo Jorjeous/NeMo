@@ -82,34 +82,34 @@ class ConformerLayer(torch.nn.Module, AdapterModuleMixin, AccessMixin):
         self.norm_self_att = LayerNorm(d_model)
         MHA_max_cache_len = att_context_size[0]
 
-        if self_attention_model == 'rel_pos':
-            self.self_attn = RelPositionMultiHeadAttention(
-                n_head=n_heads,
-                n_feat=d_model,
-                dropout_rate=dropout_att,
-                pos_bias_u=pos_bias_u,
-                pos_bias_v=pos_bias_v,
-                max_cache_len=MHA_max_cache_len,
-            )
-        elif self_attention_model == 'rel_pos_local_attn':
-            self.self_attn = RelPositionMultiHeadAttentionLongformer(
-                n_head=n_heads,
-                n_feat=d_model,
-                dropout_rate=dropout_att,
-                pos_bias_u=pos_bias_u,
-                pos_bias_v=pos_bias_v,
-                max_cache_len=MHA_max_cache_len,
-                att_context_size=att_context_size,
-            )
-        elif self_attention_model == 'abs_pos':
-            self.self_attn = MultiHeadAttention(
-                n_head=n_heads, n_feat=d_model, dropout_rate=dropout_att, max_cache_len=MHA_max_cache_len
-            )
-        else:
-            raise ValueError(
-                f"'{self_attention_model}' is not not a valid value for 'self_attention_model', "
-                f"valid values can be from ['rel_pos', 'rel_pos_local_attn', 'abs_pos']"
-            )
+        # if self_attention_model == 'rel_pos':
+        #     self.self_attn = RelPositionMultiHeadAttention(
+        #         n_head=n_heads,
+        #         n_feat=d_model,
+        #         dropout_rate=dropout_att,
+        #         pos_bias_u=pos_bias_u,
+        #         pos_bias_v=pos_bias_v,
+        #         max_cache_len=MHA_max_cache_len,
+        #     )
+        # elif self_attention_model == 'rel_pos_local_attn':
+        #     self.self_attn = RelPositionMultiHeadAttentionLongformer(
+        #         n_head=n_heads,
+        #         n_feat=d_model,
+        #         dropout_rate=dropout_att,
+        #         pos_bias_u=pos_bias_u,
+        #         pos_bias_v=pos_bias_v,
+        #         max_cache_len=MHA_max_cache_len,
+        #         att_context_size=att_context_size,
+        #     )
+        # elif self_attention_model == 'abs_pos':
+        #     self.self_attn = MultiHeadAttention(
+        #         n_head=n_heads, n_feat=d_model, dropout_rate=dropout_att, max_cache_len=MHA_max_cache_len
+        #     )
+        # else:
+        #     raise ValueError(
+        #         f"'{self_attention_model}' is not not a valid value for 'self_attention_model', "
+        #         f"valid values can be from ['rel_pos', 'rel_pos_local_attn', 'abs_pos']"
+        #     )
 
         # second feed forward module
         self.norm_feed_forward2 = LayerNorm(d_model)
