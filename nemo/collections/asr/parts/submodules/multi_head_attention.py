@@ -126,7 +126,7 @@ class MultiHeadAttention(nn.Module):
         x = torch.matmul(p_attn, value)  # (batch, head, time1, d_k)
         x = x.transpose(1, 2).reshape(n_batch, -1, self.h * self.d_k)  # (batch, time1, d_model)
 
-        return self.linear_out(torch.zeros_like(x))  # (batch, time1, d_model)
+        return self.linear_out(x)  # (batch, time1, d_model)
 
     def forward(self, query, key, value, mask, pos_emb=None, cache=None, cache_next=None):
         """Compute 'Scaled Dot Product Attention'.
@@ -166,14 +166,6 @@ class MultiHeadAttention(nn.Module):
             cache_next[self._cache_id, :, -q_keep_size:, :] = q_input[:, :q_keep_size, :]
 
         return key, value, query
-
-class FakeRelPositionMultiHeadAttention(MultiHeadAttention):
-    def __init__(self):
-        pass
-
-
-
-
 
 
 class RelPositionMultiHeadAttention(MultiHeadAttention):
@@ -265,7 +257,7 @@ class RelPositionMultiHeadAttention(MultiHeadAttention):
 
             out = self.forward_attention(v, scores, mask)
 
-        return torch.zeros_like(out)
+        return out
 
 
 class RelPositionMultiHeadAttentionLongformer(RelPositionMultiHeadAttention):

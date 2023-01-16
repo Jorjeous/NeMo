@@ -82,34 +82,34 @@ class ConformerLayer(torch.nn.Module, AdapterModuleMixin, AccessMixin):
         self.norm_self_att = LayerNorm(d_model)
         MHA_max_cache_len = att_context_size[0]
 
-        # if self_attention_model == 'rel_pos':
-        #     self.self_attn = RelPositionMultiHeadAttention(
-        #         n_head=n_heads,
-        #         n_feat=d_model,
-        #         dropout_rate=dropout_att,
-        #         pos_bias_u=pos_bias_u,
-        #         pos_bias_v=pos_bias_v,
-        #         max_cache_len=MHA_max_cache_len,
-        #     )
-        # elif self_attention_model == 'rel_pos_local_attn':
-        #     self.self_attn = RelPositionMultiHeadAttentionLongformer(
-        #         n_head=n_heads,
-        #         n_feat=d_model,
-        #         dropout_rate=dropout_att,
-        #         pos_bias_u=pos_bias_u,
-        #         pos_bias_v=pos_bias_v,
-        #         max_cache_len=MHA_max_cache_len,
-        #         att_context_size=att_context_size,
-        #     )
-        # elif self_attention_model == 'abs_pos':
-        #     self.self_attn = MultiHeadAttention(
-        #         n_head=n_heads, n_feat=d_model, dropout_rate=dropout_att, max_cache_len=MHA_max_cache_len
-        #     )
-        # else:
-        #     raise ValueError(
-        #         f"'{self_attention_model}' is not not a valid value for 'self_attention_model', "
-        #         f"valid values can be from ['rel_pos', 'rel_pos_local_attn', 'abs_pos']"
-        #     )
+        if self_attention_model == 'rel_pos':
+            self.self_attn = RelPositionMultiHeadAttention(
+                n_head=n_heads,
+                n_feat=d_model,
+                dropout_rate=dropout_att,
+                pos_bias_u=pos_bias_u,
+                pos_bias_v=pos_bias_v,
+                max_cache_len=MHA_max_cache_len,
+            )
+        elif self_attention_model == 'rel_pos_local_attn':
+            self.self_attn = RelPositionMultiHeadAttentionLongformer(
+                n_head=n_heads,
+                n_feat=d_model,
+                dropout_rate=dropout_att,
+                pos_bias_u=pos_bias_u,
+                pos_bias_v=pos_bias_v,
+                max_cache_len=MHA_max_cache_len,
+                att_context_size=att_context_size,
+            )
+        elif self_attention_model == 'abs_pos':
+            self.self_attn = MultiHeadAttention(
+                n_head=n_heads, n_feat=d_model, dropout_rate=dropout_att, max_cache_len=MHA_max_cache_len
+            )
+        else:
+            raise ValueError(
+                f"'{self_attention_model}' is not not a valid value for 'self_attention_model', "
+                f"valid values can be from ['rel_pos', 'rel_pos_local_attn', 'abs_pos']"
+            )
 
         # second feed forward module
         self.norm_feed_forward2 = LayerNorm(d_model)
@@ -147,33 +147,33 @@ class ConformerLayer(torch.nn.Module, AdapterModuleMixin, AccessMixin):
         x = self.feed_forward1(x)
         residual = residual + self.dropout(x) * self.fc_factor
 
-        #x = self.norm_self_att(residual)
-        # if self.self_attention_model == 'rel_pos':
-        #     x = self.self_attn(
-        #         query=x,
-        #         key=x,
-        #         value=x,
-        #         mask=att_mask,
-        #         pos_emb=pos_emb,
-        #         cache=cache_last_channel,
-        #         cache_next=cache_last_channel_next,
-        #     )
-        # elif self.self_attention_model == 'rel_pos_local_attn':
-        #     x = self.self_attn(
-        #         query=x,
-        #         key=x,
-        #         value=x,
-        #         pad_mask=pad_mask,
-        #         pos_emb=pos_emb,
-        #         cache=cache_last_channel,
-        #         cache_next=cache_last_channel_next,
-        #     )
-        # elif self.self_attention_model == 'abs_pos':
-        #     x = self.self_attn(
-        #         query=x, key=x, value=x, mask=att_mask, cache=cache_last_channel, cache_next=cache_last_channel_next
-        #     )
-        # else:
-        #     x = None
+        x = self.norm_self_att(residual)
+        if self.self_attention_model == 'rel_pos':
+            x = self.self_attn(
+                query=x,
+                key=x,
+                value=x,
+                mask=att_mask,
+                pos_emb=pos_emb,
+                cache=cache_last_channel,
+                cache_next=cache_last_channel_next,
+            )
+        elif self.self_attention_model == 'rel_pos_local_attn':
+            x = self.self_attn(
+                query=x,
+                key=x,
+                value=x,
+                pad_mask=pad_mask,
+                pos_emb=pos_emb,
+                cache=cache_last_channel,
+                cache_next=cache_last_channel_next,
+            )
+        elif self.self_attention_model == 'abs_pos':
+            x = self.self_attn(
+                query=x, key=x, value=x, mask=att_mask, cache=cache_last_channel, cache_next=cache_last_channel_next
+            )
+        else:
+            x = None
         residual = residual + self.dropout(x)
 
         if self.is_adapter_available():
@@ -243,28 +243,27 @@ class ConformerLayer(torch.nn.Module, AdapterModuleMixin, AccessMixin):
         # (input: torch.Tensor, adapter: torch.nn.Module, *, module: 'AdapterModuleMixin')
         x = input['x']
         loc = input['loc']
-
         att_mask = input.get('att_mask', None)
         pos_emb = input.get('pos_emb', None)
 
-        # if isinstance(adapter_module, adapter_modules.LinearAdapter) and loc == 'post':
-        #     output = adapter_strategy(x, adapter_module, module=self)
-        #
-        # elif isinstance(adapter_module, MultiHeadAttention) and loc == 'mha':
-        #     if self.self_attention_model == 'rel_pos':
-        #         x = dict(query=x, key=x, value=x, mask=att_mask, pos_emb=pos_emb)
-        #         output = adapter_strategy(x, adapter_module, module=self)
-        #
-        #     elif self.self_attention_model == 'abs_pos':
-        #         x = dict(query=x, key=x, value=x, mask=att_mask)
-        #         output = adapter_strategy(x, adapter_module, module=self)
-        #
-        #     else:
-        #         raise ValueError(f"Unsupported value of self_attention_model , provided {self.self_attention_model}!")
-        #
-        # else:
+        if isinstance(adapter_module, adapter_modules.LinearAdapter) and loc == 'post':
+            output = adapter_strategy(x, adapter_module, module=self)
+
+        elif isinstance(adapter_module, MultiHeadAttention) and loc == 'mha':
+            if self.self_attention_model == 'rel_pos':
+                x = dict(query=x, key=x, value=x, mask=att_mask, pos_emb=pos_emb)
+                output = adapter_strategy(x, adapter_module, module=self)
+
+            elif self.self_attention_model == 'abs_pos':
+                x = dict(query=x, key=x, value=x, mask=att_mask)
+                output = adapter_strategy(x, adapter_module, module=self)
+
+            else:
+                raise ValueError(f"Unsupported value of self_attention_model , provided {self.self_attention_model}!")
+
+        else:
             # No adapter compatible, skip
-        output = x
+            output = x
 
         input['x'] = output
 
