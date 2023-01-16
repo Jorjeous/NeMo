@@ -168,7 +168,7 @@ class ConformerEncoder(NeuralModule, StreamingEncoder, Exportable):
         self,
         feat_in,
         n_layers,
-        d_model,
+        d_model=512,
         feat_out=-1,
         causal_downsampling=False,
         subsampling='striding',
