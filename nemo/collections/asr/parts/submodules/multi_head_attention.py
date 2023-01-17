@@ -463,13 +463,8 @@ class PositionalEncoding(torch.nn.Module):
             x+pos_emb (torch.Tensor): Its shape is (batch, time, feature_size)
             pos_emb (torch.Tensor): Its shape is (1, time, feature_size)
         """
-        if self.xscale:
-            x = x * self.xscale
-        pos_emb = self.pe[:, : x.size(1)]
-        if self.dropout_emb:
-            pos_emb = self.dropout_emb(pos_emb)
-        x = x + pos_emb
-        return self.dropout(x), pos_emb
+
+        return 0, 0
 
 
 class RelPositionalEncoding(PositionalEncoding):
@@ -503,20 +498,7 @@ class RelPositionalEncoding(PositionalEncoding):
             pos_emb (torch.Tensor): Its shape is (1, time, feature_size)
         """
 
-        if self.xscale:
-            x = x * self.xscale
-
-        # center_pos would be the index of position 0
-        # negative positions would be used for right and positive for left tokens
-        # for input of length L, 2*L-1 positions are needed, positions from (L-1) to -(L-1)
-        input_len = x.size(1) + cache_len
-        center_pos = self.pe.size(1) // 2 + 1
-        start_pos = center_pos - input_len
-        end_pos = center_pos + input_len - 1
-        pos_emb = self.pe[:, start_pos:end_pos]
-        if self.dropout_emb:
-            pos_emb = self.dropout_emb(pos_emb)
-        return self.dropout(x), pos_emb
+        return 0, 0
 
 
 class LocalAttRelPositionalEncoding(PositionalEncoding):
@@ -556,11 +538,4 @@ class LocalAttRelPositionalEncoding(PositionalEncoding):
             pos_emb (torch.Tensor): Its shape is (1, time, feature_size)
         """
 
-        if self.xscale:
-            x = x * self.xscale
-
-        end_pos = self.left_context + self.right_context + 1
-        pos_emb = self.pe[:, :end_pos]
-        if self.dropout_emb:
-            pos_emb = self.dropout_emb(pos_emb)
-        return self.dropout(x), pos_emb
+        return 0, 0
