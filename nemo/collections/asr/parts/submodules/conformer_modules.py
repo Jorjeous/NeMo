@@ -249,17 +249,17 @@ class ConformerLayer(torch.nn.Module, AdapterModuleMixin, AccessMixin):
         if isinstance(adapter_module, adapter_modules.LinearAdapter) and loc == 'post':
             output = adapter_strategy(x, adapter_module, module=self)
 
-        elif isinstance(adapter_module, MultiHeadAttention) and loc == 'mha':
-            if self.self_attention_model == 'rel_pos':
-                x = dict(query=x, key=x, value=x, mask=att_mask, pos_emb=pos_emb)
-                output = adapter_strategy(x, adapter_module, module=self)
-
-            elif self.self_attention_model == 'abs_pos':
-                x = dict(query=x, key=x, value=x, mask=att_mask)
-                output = adapter_strategy(x, adapter_module, module=self)
-
-            else:
-                raise ValueError(f"Unsupported value of self_attention_model , provided {self.self_attention_model}!")
+        # elif isinstance(adapter_module, MultiHeadAttention) and loc == 'mha':
+        #     if self.self_attention_model == 'rel_pos':
+        #         x = dict(query=x, key=x, value=x, mask=att_mask, pos_emb=pos_emb)
+        #         output = adapter_strategy(x, adapter_module, module=self)
+        #
+        #     elif self.self_attention_model == 'abs_pos':
+        #         x = dict(query=x, key=x, value=x, mask=att_mask)
+        #         output = adapter_strategy(x, adapter_module, module=self)
+        #
+        #     else:
+        #         raise ValueError(f"Unsupported value of self_attention_model , provided {self.self_attention_model}!")
 
         else:
             # No adapter compatible, skip
