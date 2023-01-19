@@ -163,7 +163,7 @@ class ConvASREncoder(NeuralModule, Exportable):
         residual_panes = []
         encoder_layers = []
         self.dense_residual = False
-
+        #remove stride block
         # Subsampling
         if subsampling_conv_channels == -1:
             subsampling_conv_channels = feat_in
