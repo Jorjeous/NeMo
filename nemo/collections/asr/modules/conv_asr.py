@@ -21,6 +21,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 from omegaconf import MISSING, DictConfig, ListConfig, OmegaConf
 
+from nemo.collections.asr.parts.submodules.subsampling import (
+    ConvSubsampling,
+    StackingSubsampling,
+    SubsamplingReductionModule,
+)
+
 from nemo.collections.asr.parts.submodules.jasper import (
     JasperBlock,
     MaskedConv1d,
@@ -49,6 +55,9 @@ from nemo.core.neural_types import (
     SpectrogramType,
 )
 from nemo.utils import logging
+from nemo.core.neural_types import AcousticEncodedRepresentation, ChannelType, LengthsType, NeuralType, SpectrogramType
+
+
 
 __all__ = ['ConvASRDecoder', 'ConvASREncoder', 'ConvASRDecoderClassification']
 
@@ -108,8 +117,17 @@ class ConvASREncoder(NeuralModule, Exportable):
     def __init__(
         self,
         jasper,
+        n_layers,
+        d_model,
         activation: str,
         feat_in: int,
+        causal_downsampling=False,
+        subsampling='striding',
+        subsampling_factor=4,
+        subsampling_conv_channels=-1,
+        reduction=None,
+        reduction_position=None,
+        reduction_factor=1,
         normalization_mode: str = "batch",
         residual_mode: str = "add",
         norm_groups: int = -1,
@@ -119,6 +137,16 @@ class ConvASREncoder(NeuralModule, Exportable):
         quantize: bool = False,
     ):
         super().__init__()
+        self.subsampling_factor = subsampling_factor
+        self.d_model = d_model
+        self.n_layers = n_layers
+        self._feat_in = feat_in
+
+
+        # if isinstance(conv_context_size, ListConfig):
+        #     conv_context_size = list(conv_context_size)
+
+
         if isinstance(jasper, ListConfig):
             jasper = OmegaConf.to_container(jasper)
 
@@ -135,11 +163,51 @@ class ConvASREncoder(NeuralModule, Exportable):
         residual_panes = []
         encoder_layers = []
         self.dense_residual = False
+
+        # Subsampling
+        if subsampling_conv_channels == -1:
+            subsampling_conv_channels = feat_in
+        if subsampling and subsampling_factor > 1:
+            if subsampling in ['stacking', 'stacking_norm']:
+                # stacking_norm has an extra layer norm after stacking comparing to stacking
+                self.pre_encode = StackingSubsampling(
+                    subsampling_factor=subsampling_factor,
+                    feat_in=feat_in,
+                    feat_out=feat_in,
+                    norm=True if subsampling == 'stacking_norm' else False,
+                )
+            else:
+                self.pre_encode = ConvSubsampling(
+                    subsampling=subsampling,
+                    subsampling_factor=subsampling_factor,
+                    feat_in=feat_in,
+                    feat_out=feat_in,
+                    conv_channels=subsampling_conv_channels,
+                    activation=nn.ReLU(True),
+                    is_causal=causal_downsampling,
+                )
+        else:
+            self.pre_encode = nn.Linear(feat_in, d_model)
+
+        self.layers = nn.ModuleList()
+
+        def update_max_seq_length(self, seq_length: int, device):
+            # Find global max audio length across all nodes
+            if torch.distributed.is_initialized():
+                global_max_len = torch.tensor([seq_length], dtype=torch.float32, device=device)
+
+                # Update across all ranks in the distributed system
+                torch.distributed.all_reduce(global_max_len, op=torch.distributed.ReduceOp.MAX)
+
+                seq_length = global_max_len.int().item()
+
+            if seq_length > self.max_audio_length:
+                self.set_max_audio_length(seq_length)
+
         for lcfg in jasper:
             dense_res = []
             if lcfg.get('residual_dense', False):
                 residual_panes.append(feat_in)
-                dense_res = residual_panes
                 self.dense_residual = True
             groups = lcfg.get('groups', 1)
             separable = lcfg.get('separable', False)
@@ -384,12 +452,14 @@ class ParallelConvASREncoder(NeuralModule, Exportable):
             feat_in = lcfg['filters']
 
         self._feat_out = feat_in
+        self.pre_encode = nn.Linear(feat_in, self._feat_out)
 
         self.encoder = torch.nn.Sequential(*encoder_layers)
         self.apply(lambda x: init_weights(x, mode=init_mode))
 
     @typecheck()
     def forward(self, audio_signal, length=None):
+        audio_signal = self.pre_encode(audio_signal)
         s_input, length = self.encoder(([audio_signal], length))
         if length is None:
             return s_input[-1]
