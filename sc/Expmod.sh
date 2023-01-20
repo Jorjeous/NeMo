@@ -147,7 +147,7 @@ SLURM_REMOTE=${SLURM_REMOTE:-false}  # execute Draco/Selene task via ssh
 #================================================================
 # 5. DIRECTORIES
 #================================================================
-
+WORKSPACE_MNT=/ws
 # directories on cluster with data (<dataset>_CLUSTER_DIR) + workspace (HOME_CLUSTER_DIR)
 if [[ $CLUSTER = "draco" ]]; then
   HOME_CLUSTER_DIR="/gpfs/fs1/projects/ent_aiapps/users/gzelenfroind"
@@ -162,9 +162,9 @@ elif [[ $CLUSTER = "selene" ]]; then
   LIBRISPEECH_CLUSTER_DIR="/lustre/fsw/swdl/swdl-langspeech/datasets/data/ASR/LibriSpeech/librispeech/LibriSpeech"
   LIBRISPEECH_TARRED_CLUSTER_DIR="/lustre/fsw/swdl/swdl-langspeech/datasets/data/librispeech_sp_tarred"
 elif [[ $CLUSTER = "local" ]]; then
-  HOME_CLUSTER_DIR="/home/vbataev"
-  LIBRISPEECH_CLUSTER_DIR="/data/LibriSpeech"
-  LIBRISPEECH_TARRED_CLUSTER_DIR="/media/hdd/Datasets/LibriSpeech/97103"
+  HOME_CLUSTER_DIR="/home/gzelenfroind/QN20_TEST/"
+  LIBRISPEECH_CLUSTER_DIR="/home/gzelenfroind/Quartznet_info/data/LibriSpeech"
+  #LIBRISPEECH_TARRED_CLUSTER_DIR="/media/hdd/Datasets/LibriSpeech/97103"
 elif [[ $CLUSTER = "ngc" ]]; then
   HOME_CLUSTER_DIR="exp_asr_ngc_vb" # workspace to mount
   # NGC LibriSpeech: 26109 - sp, no dev/test, only train, no 1.0; 88225 - with folders; 9367 - separate folder "LibriSpeech"
@@ -176,7 +176,6 @@ fi
 
 # paths to mount directories
 # workspace
-WORKSPACE_MNT=/ws
 
 # data directories
 LIBRISPEECH_DIR=/data/LibriSpeech/LibriSpeech
@@ -238,9 +237,10 @@ TOKENIZER_DIR="ws/"
 
 
 
-TRAIN_SCRIPT="/ws/NeMo/examples/asr/asr_ctc/speech_to_text_ctc.py"
-CONFIG_PATH="/ws/"
-CONFIG_NAME="quartznet2_str4_cos_ctc_no_joint.yaml"
+TRAIN_SCRIPT="/ws/NeMo/examples/asr/asr_ctc/speech_to_text_ctc_bpe.py"
+#TRAIN_SCRIPT="${WORKSPACE_MNT}NeMo/examples/asr/asr_ctc/speech_to_text_ctc.py"
+CONFIG_PATH="/ws/NeMo/examples/asr/conf/quartznet/"
+CONFIG_NAME="qn122M.yaml"
 OPTIM="novograd"
 LR=0.05
 BETAS=[0.9,0.98]
@@ -263,12 +263,13 @@ echo "*******STARTING********" \
 && export WANDB_API_KEY=${WANDB_KEY} \
 && mkdir -p ${EXP_DIR} \
 && cd ${EXP_DIR} \
+&& echo "POINT_1" \
+&& pwd \
+&& ls \
 && ${SCRIPT_ENV} python ${TRAIN_SCRIPT} \
 --config-name=${CONFIG_NAME} \
 --config-path=${CONFIG_PATH} \
 ++model.train_ds.manifest_filepath=${TRAIN_MANIFESTS} \
-++model.train_ds.is_tarred=true \
-++model.train_ds.tarred_audio_filepaths=${TARRED_AUDIO_FILEPATHS} \
 ++model.validation_ds.manifest_filepath=[${DEV_MANIFESTS},${TEST_MANIFESTS}] \
 ++model.train_ds.num_workers=${DL_WORKERS} \
 ++model.validation_ds.num_workers=${DL_WORKERS} \
@@ -287,13 +288,15 @@ echo "*******STARTING********" \
 ++exp_manager.resume_if_exists=true \
 ++exp_manager.resume_ignore_no_checkpoint=true \
 ++exp_manager.exp_dir=${EXP_DIR} \
-++exp_manager.name=${EXP_NAME}
+++exp_manager.name="TEST_1"
 EOF
 
 #================================================================
 # EXPERIMENT_COMMAND:END
 #================================================================
-
+#++model.train_ds.is_tarred=true \
+#++model.train_ds.tarred_audio_filepaths=${TARRED_AUDIO_FILEPATHS} \
+#
 #================================================================
 # 9. RUN_TASK
 #================================================================
@@ -310,7 +313,6 @@ unirun \
   --cluster "${CLUSTER}" \
   --container "${CONTAINER}" \
   --dataset "${LIBRISPEECH_CLUSTER_DIR}:${LIBRISPEECH_DIR}" \
-  --dataset "${LIBRISPEECH_TARRED_CLUSTER_DIR}:${LIBRISPEECH_TARRED_DIR}" \
   --workspace "${HOME_CLUSTER_DIR}:${WORKSPACE_MNT}" \
   --cmd "${cmd}" \
   --num-runs "${NUM_RUNS}" \
