@@ -240,7 +240,7 @@ TOKENIZER_DIR="ws/"
 TRAIN_SCRIPT="/ws/NeMo/examples/asr/asr_ctc/speech_to_text_ctc_bpe.py"
 #TRAIN_SCRIPT="${WORKSPACE_MNT}NeMo/examples/asr/asr_ctc/speech_to_text_ctc.py"
 CONFIG_PATH="/ws/NeMo/examples/asr/conf/quartznet/"
-CONFIG_NAME="qn122M.yaml"
+CONFIG_NAME="quartznet2_str4_cos_ctc_no_joint.yaml"
 OPTIM="novograd"
 LR=0.05
 BETAS=[0.9,0.98]
@@ -266,10 +266,20 @@ echo "*******STARTING********" \
 && echo "POINT_1" \
 && pwd \
 && ls \
-&& ${SCRIPT_ENV} python ${TRAIN_SCRIPT} \
+&& echo "${EXP_NAME}" \
+&& echo ${EXP_NAME} \
+&& echo "CN" \
+&& echo ${CONFIG_NAME} \
+&& echo "CP" \
+&& echo ${CONFIG_PATH} \
+&& echo "TM" \
+&& echo ${TRAIN_MANIFESTS} \
+&& ${SCRIPT_ENV} python3 ${TRAIN_SCRIPT} \
 --config-name=${CONFIG_NAME} \
 --config-path=${CONFIG_PATH} \
 ++model.train_ds.manifest_filepath=${TRAIN_MANIFESTS} \
+++model.tokenizer.dir=${TOKENIZER_DIR} \
+++model.tokenizer.type="bpe" \
 ++model.validation_ds.manifest_filepath=[${DEV_MANIFESTS},${TEST_MANIFESTS}] \
 ++model.train_ds.num_workers=${DL_WORKERS} \
 ++model.validation_ds.num_workers=${DL_WORKERS} \
@@ -281,15 +291,16 @@ echo "*******STARTING********" \
 ++trainer.devices=-1 \
 ++trainer.log_every_n_steps=${LOG_EVERY_N_STEPS} \
 ++exp_manager.create_wandb_logger=True \
-++exp_manager.wandb_logger_kwargs.name="${EXP_NAME}" \
-++exp_manager.wandb_logger_kwargs.project="${PROJECT}" \
+++exp_manager.wandb_logger_kwargs.name="EXP1" \
+++exp_manager.wandb_logger_kwargs.project="Proj 1" \
 ++exp_manager.wandb_logger_kwargs.resume=auto \
-++exp_manager.wandb_logger_kwargs.id="${EXP_NAME}" \
-++exp_manager.resume_if_exists=true \
-++exp_manager.resume_ignore_no_checkpoint=true \
-++exp_manager.exp_dir=${EXP_DIR} \
-++exp_manager.name="TEST_1"
+++exp_manager.wandb_logger_kwargs.id="1" 
 EOF
+#++exp_manager.resume_if_exists=true \
+#++exp_manager.resume_ignore_no_checkpoint=true \
+#++exp_manager.exp_dir=${EXP_DIR} \
+#++exp_manager.name="TEST_1"
+#EOF
 
 #================================================================
 # EXPERIMENT_COMMAND:END
