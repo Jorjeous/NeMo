@@ -76,11 +76,13 @@ from nemo.utils.exp_manager import exp_manager
 @hydra_runner(config_path="../conf/citrinet/", config_name="config_bpe")
 def main(cfg):
     logging.info(f'Hydra config: {OmegaConf.to_yaml(cfg)}')
-
+    print("after_logging")
     trainer = pl.Trainer(**cfg.trainer)
+    print("after_trainer")
     exp_manager(trainer, cfg.get("exp_manager", None))
+    print("after_expmanager")
     asr_model = EncDecCTCModelBPE(cfg=cfg.model, trainer=trainer)
-
+    print("after_encdecctcmodel")
     # Initialize the weights of the model from another model, if provided via config
     asr_model.maybe_init_from_pretrained_checkpoint(cfg)
 
