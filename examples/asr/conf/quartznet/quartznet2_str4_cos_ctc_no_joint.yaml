@@ -257,7 +257,7 @@ model:
     num_classes: 28
     vocabulary: *labels
     #normalization_mode: null # Currently only null is supported for export.
-    random_state_sampling: false # Random state sampling: https://arxiv.org/pdf/1910.11455.pdf
+    #random_state_sampling: false # Random state sampling: https://arxiv.org/pdf/1910.11455.pdf
     blank_as_pad: false # This flag must be set in order to support exporting of RNNT models + efficient inference.
 
     prednet:
