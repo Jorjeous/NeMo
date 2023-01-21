@@ -163,7 +163,7 @@ elif [[ $CLUSTER = "selene" ]]; then
   LIBRISPEECH_TARRED_CLUSTER_DIR="/lustre/fsw/swdl/swdl-langspeech/datasets/data/librispeech_sp_tarred"
 elif [[ $CLUSTER = "local" ]]; then
   HOME_CLUSTER_DIR="/home/gzelenfroind/QN20_TEST/"
-  LIBRISPEECH_CLUSTER_DIR="/home/gzelenfroind/Quartznet_info/data/LibriSpeech"
+  LIBRISPEECH_CLUSTER_DIR="/home/gzelenfroind/QN20_TEST/LibriSpeech"
   #LIBRISPEECH_TARRED_CLUSTER_DIR="/media/hdd/Datasets/LibriSpeech/97103"
 elif [[ $CLUSTER = "ngc" ]]; then
   HOME_CLUSTER_DIR="exp_asr_ngc_vb" # workspace to mount
@@ -178,7 +178,7 @@ fi
 # workspace
 
 # data directories
-LIBRISPEECH_DIR=/data/LibriSpeech/LibriSpeech
+LIBRISPEECH_DIR=/LibriSpeech
 if [[ $CLUSTER = "ngc" ]]; then
   LIBRISPEECH_DIR=/data/LibriSpeech
 fi
@@ -201,13 +201,16 @@ fi
 
 # manifests directories
 LIBRISPEECH_MANIFESTS_DIR=${CODE_DIR}/manifests/librispeech
-
+	
 # used manifests
 #TRAIN_MANIFESTS=${LIBRISPEECH_MANIFESTS_DIR}/train_clean_100.json,${LIBRISPEECH_MANIFESTS_DIR}/train_clean_360.json,${LIBRISPEECH_MANIFESTS_DIR}/train_other_500.json
-TRAIN_MANIFESTS=${LIBRISPEECH_TARRED_DIR}/tarred_audio_manifest.json
+TRAIN_MANIFESTS=/LibriSpeech/restest_2.json
+#TRAIN_MANIFESTS=${LIBRISPEECH_CLUSTER_DIR}/restest_3.json
+DEV_MANIFESTS=/LibriSpeech/restest_4.json
+TEST_MANIFESTS=/LibriSpeech/restest_5.json
 TARRED_AUDIO_FILEPATHS="${LIBRISPEECH_TARRED_DIR}/audio__OP_0..511_CL_.tar"
-DEV_MANIFESTS=${LIBRISPEECH_MANIFESTS_DIR}/dev_other.json
-TEST_MANIFESTS=${LIBRISPEECH_MANIFESTS_DIR}/dev_clean.json,${LIBRISPEECH_MANIFESTS_DIR}/test_clean.json,${LIBRISPEECH_MANIFESTS_DIR}/test_other.json
+#DEV_MANIFESTS=${LIBRISPEECH_MANIFESTS_DIR}/dev_other.json
+#TEST_MANIFESTS=${LIBRISPEECH_MANIFESTS_DIR}/dev_clean.json,${LIBRISPEECH_MANIFESTS_DIR}/test_clean.json,${LIBRISPEECH_MANIFESTS_DIR}/test_other.json
 
 #================================================================
 # MANIFESTS:END
@@ -233,7 +236,7 @@ EXP_DIR=${WORKSPACE_MNT}/exp/${EXP_NAME}
 # 8. EXPERIMENT_COMMAND
 #================================================================
 
-TOKENIZER_DIR="ws/"
+TOKENIZER_DIR="/ws/NeMo/librispeech_tokenizer_spe_unigram_v1024/"
 
 
 
