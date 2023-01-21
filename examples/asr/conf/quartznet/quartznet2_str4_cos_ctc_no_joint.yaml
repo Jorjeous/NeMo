@@ -260,11 +260,11 @@ model:
     #random_state_sampling: false # Random state sampling: https://arxiv.org/pdf/1910.11455.pdf
     #blank_as_pad: false # This flag must be set in order to support exporting of RNNT models + efficient inference.
 
-    prednet:
-      pred_hidden: ${model.model_defaults.pred_hidden}
-      pred_rnn_layers: 1
-      t_max: null
-      dropout: 0.2
+#    prednet:
+#      pred_hidden: ${model.model_defaults.pred_hidden}
+#      pred_rnn_layers: 1
+#      t_max: null
+#      dropout: 0.2
 
   decoding:
     strategy: "greedy_batch" # can be greedy, greedy_batch, beam, tsd, alsd.
