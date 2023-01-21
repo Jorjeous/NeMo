@@ -1036,6 +1036,7 @@ class ConvASRDecoderConfig:
     feat_in: int = MISSING
     num_classes: int = MISSING
     init_mode: Optional[str] = "xavier_uniform"
+    normalization_mode: str = "batch"
     vocabulary: Optional[List[str]] = field(default_factory=list)
 
 

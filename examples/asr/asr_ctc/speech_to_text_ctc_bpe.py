@@ -64,6 +64,14 @@ https://docs.nvidia.com/deeplearning/nemo/user-guide/docs/en/main/asr/results.ht
 
 """
 
+
+TOKENIZER_DIR="/ws/librispeech_tokenizer_spe_unigram_v1024"
+
+
+
+
+
+
 import pytorch_lightning as pl
 from omegaconf import OmegaConf
 
