@@ -254,7 +254,7 @@ model:
 
   decoder:
     _target_: nemo.collections.asr.modules.ConvASRDecoder
-    num_classes: 28
+    num_classes: 1024
     vocabulary: *labels
     #normalization_mode: null # Currently only null is supported for export.
     #random_state_sampling: false # Random state sampling: https://arxiv.org/pdf/1910.11455.pdf
