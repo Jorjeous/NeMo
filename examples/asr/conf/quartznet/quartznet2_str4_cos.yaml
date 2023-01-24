@@ -77,7 +77,9 @@ model:
     conv_mask: true
     d_model: 512
     n_layers: 17
-
+    subsampling_factor: 4
+    subsampling_conv_channels: 512
+    subsampling: striding
 
 
     jasper:
