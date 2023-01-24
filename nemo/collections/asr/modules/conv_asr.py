@@ -155,7 +155,7 @@ class ConvASREncoder(NeuralModule, Exportable):
 
 
         # Subsampling
-        logging.warning(f"SUBSAMPLING IN PROCESS")
+        logging.warning(f"SUBSAMPLING IN PROCESS _____ 1")
 
         if subsampling_conv_channels == -1:
             subsampling_conv_channels = d_model
@@ -168,6 +168,7 @@ class ConvASREncoder(NeuralModule, Exportable):
                     feat_out=d_model,
                     norm=True if subsampling == 'stacking_norm' else False,
                 )
+                logging.warning(f"StackingSubsampling")
             else:
                 self.pre_encode = ConvSubsampling(
                     subsampling=subsampling,
@@ -178,6 +179,7 @@ class ConvASREncoder(NeuralModule, Exportable):
                     activation=nn.ReLU(True),
                     is_causal=causal_downsampling,
                 )
+                logging.warning(f"ConvSubsampling")
         else:
             logging.warning(f"init pre encode!")
             self.pre_encode = nn.Linear(feat_in, d_model)
