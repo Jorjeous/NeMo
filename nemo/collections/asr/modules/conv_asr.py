@@ -155,7 +155,8 @@ class ConvASREncoder(NeuralModule, Exportable):
 
 
         # Subsampling
-        print("SUBSAMPLING")
+        logging.warning(f"SUBSAMPLING IN PROCESS")
+
         if subsampling_conv_channels == -1:
             subsampling_conv_channels = d_model
         if subsampling and subsampling_factor > 1:
@@ -466,7 +467,7 @@ class ParallelConvASREncoder(NeuralModule, Exportable):
             feat_in = lcfg['filters']
 
         self._feat_out = feat_in
-
+        logging.warning(f"SUBSAMPLING NOT IN PROCESS")
         self.encoder = torch.nn.Sequential(*encoder_layers)
         self.apply(lambda x: init_weights(x, mode=init_mode))
 
