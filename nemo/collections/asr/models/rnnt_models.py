@@ -38,6 +38,11 @@ from nemo.core.classes.common import PretrainedModelInfo, typecheck
 from nemo.core.classes.mixins import AccessMixin
 from nemo.core.neural_types import AcousticEncodedRepresentation, AudioSignal, LengthsType, NeuralType, SpectrogramType
 from nemo.utils import logging
+from nemo.collections.asr.parts.submodules.subsampling import (
+    ConvSubsampling,
+    StackingSubsampling,
+    SubsamplingReductionModule,
+)
 
 
 class EncDecRNNTModel(ASRModel, ASRModuleMixin, Exportable):

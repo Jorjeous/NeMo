@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import math
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from typing import List, Optional, Set, Union
@@ -20,12 +21,6 @@ import torch.distributed
 import torch.nn as nn
 import torch.nn.functional as F
 from omegaconf import MISSING, DictConfig, ListConfig, OmegaConf
-
-from nemo.collections.asr.parts.submodules.subsampling import (
-    ConvSubsampling,
-    StackingSubsampling,
-    SubsamplingReductionModule,
-)
 
 from nemo.collections.asr.parts.submodules.jasper import (
     JasperBlock,
@@ -41,6 +36,13 @@ from nemo.collections.asr.parts.submodules.tdnn_attention import (
     TDNNModule,
     TDNNSEModule,
 )
+
+from nemo.collections.asr.parts.submodules.subsampling import (
+    ConvSubsampling,
+    StackingSubsampling,
+    SubsamplingReductionModule,
+)
+
 from nemo.collections.asr.parts.utils import adapter_utils
 from nemo.core.classes.common import typecheck
 from nemo.core.classes.exportable import Exportable
@@ -55,9 +57,6 @@ from nemo.core.neural_types import (
     SpectrogramType,
 )
 from nemo.utils import logging
-from nemo.core.neural_types import AcousticEncodedRepresentation, ChannelType, LengthsType, NeuralType, SpectrogramType
-
-
 
 __all__ = ['ConvASRDecoder', 'ConvASREncoder', 'ConvASRDecoderClassification']
 
@@ -65,7 +64,6 @@ __all__ = ['ConvASRDecoder', 'ConvASREncoder', 'ConvASRDecoderClassification']
 class ConvASREncoder(NeuralModule, Exportable):
     """
     Convolutional encoder for ASR models. With this class you can implement JasperNet and QuartzNet models.
-
     Based on these papers:
         https://arxiv.org/pdf/1904.03288.pdf
         https://arxiv.org/pdf/1910.10261.pdf
@@ -117,10 +115,11 @@ class ConvASREncoder(NeuralModule, Exportable):
     def __init__(
         self,
         jasper,
-        n_layers,
         d_model,
+        n_layers,
         activation: str,
         feat_in: int,
+        feat_out=-1,
         causal_downsampling=False,
         subsampling='striding',
         subsampling_factor=4,
@@ -137,16 +136,6 @@ class ConvASREncoder(NeuralModule, Exportable):
         quantize: bool = False,
     ):
         super().__init__()
-        self.subsampling_factor = subsampling_factor
-        self.d_model = d_model
-        self.n_layers = n_layers
-        self._feat_in = feat_in
-
-
-        # if isinstance(conv_context_size, ListConfig):
-        #     conv_context_size = list(conv_context_size)
-
-
         if isinstance(jasper, ListConfig):
             jasper = OmegaConf.to_container(jasper)
 
@@ -163,17 +152,18 @@ class ConvASREncoder(NeuralModule, Exportable):
         residual_panes = []
         encoder_layers = []
         self.dense_residual = False
-        #remove stride block
+
+
         # Subsampling
         if subsampling_conv_channels == -1:
-            subsampling_conv_channels = feat_in
+            subsampling_conv_channels = d_model
         if subsampling and subsampling_factor > 1:
             if subsampling in ['stacking', 'stacking_norm']:
                 # stacking_norm has an extra layer norm after stacking comparing to stacking
                 self.pre_encode = StackingSubsampling(
                     subsampling_factor=subsampling_factor,
                     feat_in=feat_in,
-                    feat_out=feat_in,
+                    feat_out=d_model,
                     norm=True if subsampling == 'stacking_norm' else False,
                 )
             else:
@@ -181,7 +171,7 @@ class ConvASREncoder(NeuralModule, Exportable):
                     subsampling=subsampling,
                     subsampling_factor=subsampling_factor,
                     feat_in=feat_in,
-                    feat_out=feat_in,
+                    feat_out=d_model,
                     conv_channels=subsampling_conv_channels,
                     activation=nn.ReLU(True),
                     is_causal=causal_downsampling,
@@ -189,25 +179,32 @@ class ConvASREncoder(NeuralModule, Exportable):
         else:
             self.pre_encode = nn.Linear(feat_in, d_model)
 
-        self.layers = nn.ModuleList()
+        # Reduction
+        if reduction and reduction_factor > 1:
+            assert reduction_position >= -1 and reduction_position < n_layers
+            self.reduction_subsampling = SubsamplingReductionModule(
+                reduction=reduction, d_model=d_model, reduction_factor=reduction_factor,
+            )
+            self.reduction_position = reduction_position
+        else:
+            self.reduction_subsampling = None
+            self.reduction_position = None
 
-        def update_max_seq_length(self, seq_length: int, device):
-            # Find global max audio length across all nodes
-            if torch.distributed.is_initialized():
-                global_max_len = torch.tensor([seq_length], dtype=torch.float32, device=device)
+        self._feat_out = d_model
+        if feat_out > 0 and feat_out != self._feat_out:
+            self.out_proj = nn.Linear(self._feat_out, feat_out)
+            self._feat_out = feat_out
+        else:
+            self.out_proj = None
+            self._feat_out = d_model
 
-                # Update across all ranks in the distributed system
-                torch.distributed.all_reduce(global_max_len, op=torch.distributed.ReduceOp.MAX)
 
-                seq_length = global_max_len.int().item()
-
-            if seq_length > self.max_audio_length:
-                self.set_max_audio_length(seq_length)
 
         for lcfg in jasper:
             dense_res = []
             if lcfg.get('residual_dense', False):
                 residual_panes.append(feat_in)
+                dense_res = residual_panes
                 self.dense_residual = True
             groups = lcfg.get('groups', 1)
             separable = lcfg.get('separable', False)
@@ -260,12 +257,28 @@ class ConvASREncoder(NeuralModule, Exportable):
 
     @typecheck()
     def forward(self, audio_signal, length):
-        self.update_max_sequence_length(seq_length=audio_signal.size(2), device=audio_signal.device)
-        s_input, length = self.encoder(([audio_signal], length))
-        if length is None:
-            return s_input[-1]
+        self.update_max_seq_length(seq_length=audio_signal.size(2), device=audio_signal.device)
+        max_audio_length: int = audio_signal.size(-1)
+        if isinstance(self.pre_encode, nn.Linear):
+            audio_signal = self.pre_encode(audio_signal)
+        else:
+            audio_signal, length = self.pre_encode(x=audio_signal, lengths=length)
 
-        return s_input[-1], length
+        max_audio_length = audio_signal.size(1)
+
+        if self.out_proj is not None:
+            audio_signal = self.out_proj(audio_signal)
+
+        if self.reduction_position == -1:
+            audio_signal, length = self.reduction_subsampling(x=audio_signal, lengths=length)
+
+        audio_signal = torch.transpose(audio_signal, 1, 2)
+        return audio_signal, length
+
+
+
+
+
 
     def update_max_sequence_length(self, seq_length: int, device):
         # Find global max audio length across all nodes
@@ -452,14 +465,12 @@ class ParallelConvASREncoder(NeuralModule, Exportable):
             feat_in = lcfg['filters']
 
         self._feat_out = feat_in
-        self.pre_encode = nn.Linear(feat_in, self._feat_out)
 
         self.encoder = torch.nn.Sequential(*encoder_layers)
         self.apply(lambda x: init_weights(x, mode=init_mode))
 
     @typecheck()
     def forward(self, audio_signal, length=None):
-        audio_signal = self.pre_encode(audio_signal)
         s_input, length = self.encoder(([audio_signal], length))
         if length is None:
             return s_input[-1]
@@ -469,7 +480,6 @@ class ParallelConvASREncoder(NeuralModule, Exportable):
 
 class ConvASRDecoder(NeuralModule, Exportable, adapter_mixins.AdapterModuleMixin):
     """Simple ASR Decoder for use with CTC-based models such as JasperNet and QuartzNet
-
      Based on these papers:
         https://arxiv.org/pdf/1904.03288.pdf
         https://arxiv.org/pdf/1910.10261.pdf
@@ -684,7 +694,6 @@ class ConvASRDecoderReconstruction(NeuralModule, Exportable):
 
 class ConvASRDecoderClassification(NeuralModule, Exportable):
     """Simple ASR Decoder for use with classification models such as JasperNet and QuartzNet
-
      Based on these papers:
         https://arxiv.org/pdf/2005.04290.pdf
     """
@@ -752,14 +761,12 @@ class ECAPAEncoder(NeuralModule, Exportable):
     Modified ECAPA Encoder layer without Res2Net module for faster training and inference which achieves
     better numbers on speaker diarization tasks
     Reference: ECAPA-TDNN Embeddings for Speaker Diarization (https://arxiv.org/pdf/2104.01466.pdf)
-
     input:
         feat_in: input feature shape (mel spec feature shape)
         filters: list of filter shapes for SE_TDNN modules
         kernel_sizes: list of kernel shapes for SE_TDNN modules
         dilations: list of dilations for group conv se layer
         scale: scale value to group wider conv channels (deafult:8)
-
     output:
         outputs : encoded output
         output_length: masked output lengths
@@ -840,7 +847,6 @@ class SpeakerDecoder(NeuralModule, Exportable):
                 Defaults to 'xvector (mean and variance)'
                 tap (temporal average pooling: just mean)
                 attention (attention based pooling)
-
         init_mode (str): Describes how neural network parameters are
             initialized. Options are ['xavier_uniform', 'xavier_normal',
             'kaiming_uniform','kaiming_normal'].
@@ -1036,7 +1042,6 @@ class ConvASRDecoderConfig:
     feat_in: int = MISSING
     num_classes: int = MISSING
     init_mode: Optional[str] = "xavier_uniform"
-    normalization_mode: str = "batch"
     vocabulary: Optional[List[str]] = field(default_factory=list)
 
 
