@@ -259,6 +259,7 @@ class ConvASREncoder(NeuralModule, Exportable):
 
     @typecheck()
     def forward(self, audio_signal, length):
+        logging.warning(f"SUBSAMPLING IN PROCESS")
         self.update_max_seq_length(seq_length=audio_signal.size(2), device=audio_signal.device)
         max_audio_length: int = audio_signal.size(-1)
         if isinstance(self.pre_encode, nn.Linear):
@@ -473,6 +474,7 @@ class ParallelConvASREncoder(NeuralModule, Exportable):
 
     @typecheck()
     def forward(self, audio_signal, length=None):
+        logging.warning(f"SUBSAMPLING NOT IN PROCESS")
         s_input, length = self.encoder(([audio_signal], length))
         if length is None:
             return s_input[-1]
