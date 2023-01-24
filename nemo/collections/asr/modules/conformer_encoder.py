@@ -328,7 +328,7 @@ class ConformerEncoder(NeuralModule, StreamingEncoder, Exportable):
             self.pos_enc = PositionalEncoding(
                 d_model=d_model, dropout_rate=dropout_pre_encoder, max_len=pos_emb_max_len, xscale=self.xscale
             )
-        elif self_attention_model == "none"
+        elif self_attention_model == "none":
             pos_bias_u = None
             pos_bias_v = None
             )
