@@ -280,11 +280,6 @@ class ConvASREncoder(NeuralModule, Exportable):
         audio_signal = torch.transpose(audio_signal, 1, 2)
         return audio_signal, length
 
-
-
-
-
-
     def update_max_seq_length(self, seq_length: int, device):
         # Find global max audio length across all nodes
         if torch.distributed.is_initialized():
@@ -296,25 +291,14 @@ class ConvASREncoder(NeuralModule, Exportable):
             seq_length = global_max_len.int().item()
 
         if seq_length > self.max_audio_length:
-            if seq_length < 5000:
-                seq_length = seq_length * 2
-            elif seq_length < 10000:
-                seq_length = seq_length * 1.5
-            self.max_audio_length = seq_length
+            self.set_max_audio_length(seq_length)
 
-            device = next(self.parameters()).device
-            seq_range = torch.arange(0, self.max_audio_length, device=device)
-            if hasattr(self, 'seq_range'):
-                self.seq_range = seq_range
-            else:
-                self.register_buffer('seq_range', seq_range, persistent=False)
-
-            # Update all submodules
-            for name, m in self.named_modules():
-                if isinstance(m, MaskedConv1d):
-                    m.update_masked_length(self.max_audio_length, seq_range=self.seq_range)
-                elif isinstance(m, SqueezeExcite):
-                    m.set_max_len(self.max_audio_length, seq_range=self.seq_range)
+    def set_max_audio_length(self, max_audio_length):
+        """
+        Sets maximum input length.
+        Pre-calculates internal seq_range mask.
+        """
+        self.max_audio_length = max_audio_length
 
 
 class ParallelConvASREncoder(NeuralModule, Exportable):
