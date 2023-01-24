@@ -155,6 +155,7 @@ class ConvASREncoder(NeuralModule, Exportable):
 
 
         # Subsampling
+        print("SUBSAMPLING")
         if subsampling_conv_channels == -1:
             subsampling_conv_channels = d_model
         if subsampling and subsampling_factor > 1:
