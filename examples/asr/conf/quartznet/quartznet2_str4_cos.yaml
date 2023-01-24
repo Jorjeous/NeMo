@@ -75,6 +75,10 @@ model:
     feat_in: ${model.preprocessor.features}
     activation: relu
     conv_mask: true
+    d_model: 512
+    n_layers: 17
+
+
 
     jasper:
 
