@@ -179,6 +179,7 @@ class ConvASREncoder(NeuralModule, Exportable):
                     is_causal=causal_downsampling,
                 )
         else:
+            logging.warning(f"init pre encode!")
             self.pre_encode = nn.Linear(feat_in, d_model)
 
         # Reduction

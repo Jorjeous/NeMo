@@ -73,6 +73,7 @@ model:
   encoder:
     _target_: nemo.collections.asr.modules.ConvASREncoder
     feat_in: ${model.preprocessor.features}
+    feat_out: -1
     activation: relu
     conv_mask: true
     d_model: ${model.preprocessor.features}
@@ -80,6 +81,10 @@ model:
     subsampling_factor: 4
     subsampling_conv_channels: ${model.preprocessor.features}
     subsampling: striding
+    causal_downsampling: false
+    reduction: null # pooling, striding, or null
+    reduction_position: null # Encoder block index or -1 for subsampling at the end of encoder
+    reduction_factor: 1
 
 
     jasper:
