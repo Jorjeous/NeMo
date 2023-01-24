@@ -156,7 +156,6 @@ class ConvASREncoder(NeuralModule, Exportable):
 
         # Subsampling
         logging.warning(f"SUBSAMPLING IN PROCESS")
-        asdfc + 1
 
         if subsampling_conv_channels == -1:
             subsampling_conv_channels = d_model
@@ -260,8 +259,6 @@ class ConvASREncoder(NeuralModule, Exportable):
 
     @typecheck()
     def forward(self, audio_signal, length):
-        logging.warning(f"SUBSAMPLING IN PROCESS")
-        fdsa + 1
         self.update_max_seq_length(seq_length=audio_signal.size(2), device=audio_signal.device)
         max_audio_length: int = audio_signal.size(-1)
         if isinstance(self.pre_encode, nn.Linear):
@@ -477,7 +474,6 @@ class ParallelConvASREncoder(NeuralModule, Exportable):
     @typecheck()
     def forward(self, audio_signal, length=None):
         logging.warning(f"SUBSAMPLING NOT IN PROCESS")
-        sadf + 1
         s_input, length = self.encoder(([audio_signal], length))
         if length is None:
             return s_input[-1]
@@ -534,7 +530,6 @@ class ConvASRDecoder(NeuralModule, Exportable, adapter_mixins.AdapterModuleMixin
     @typecheck()
     def forward(self, encoder_output):
         # Adapter module forward step
-        sadf + 1
         if self.is_adapter_available():
             encoder_output = encoder_output.transpose(1, 2)  # [B, T, C]
             encoder_output = self.forward_enabled_adapters(encoder_output)
@@ -675,7 +670,6 @@ class ConvASRDecoderReconstruction(NeuralModule, Exportable):
 
     @typecheck()
     def forward(self, encoder_output):
-        asdf + 1
         out = self.decoder_layers(encoder_output).transpose(-2, -1)
         if self.apply_softmax:
             out = torch.nn.functional.log_softmax(out, dim=-1)
@@ -750,7 +744,6 @@ class ConvASRDecoderClassification(NeuralModule, Exportable):
 
     @typecheck()
     def forward(self, encoder_output):
-        sadf + 1
         batch, in_channels, timesteps = encoder_output.size()
 
         encoder_output = self.pooling(encoder_output).view(batch, in_channels)  # [B, C]
@@ -832,7 +825,6 @@ class ECAPAEncoder(NeuralModule, Exportable):
         self.apply(lambda x: init_weights(x, mode=init_mode))
 
     def forward(self, audio_signal, length=None):
-        asdf + 1
         x = audio_signal
         outputs = []
 
@@ -951,7 +943,6 @@ class SpeakerDecoder(NeuralModule, Exportable):
 
     @typecheck()
     def forward(self, encoder_output, length=None):
-        sadf + 1
         pool = self._pooling(encoder_output, length)
         embs = []
 
