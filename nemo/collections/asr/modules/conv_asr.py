@@ -282,7 +282,7 @@ class ConvASREncoder(NeuralModule, Exportable):
 
 
 
-    def update_max_sequence_length(self, seq_length: int, device):
+    def update_max_seq_length(self, seq_length: int, device):
         # Find global max audio length across all nodes
         if torch.distributed.is_initialized():
             global_max_len = torch.tensor([seq_length], dtype=torch.float32, device=device)
