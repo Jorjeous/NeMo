@@ -278,7 +278,22 @@ class ConvASREncoder(NeuralModule, Exportable):
             audio_signal, length = self.reduction_subsampling(x=audio_signal, lengths=length)
 
         audio_signal = torch.transpose(audio_signal, 1, 2)
+
+        s_input, length_1 = self.encoder(([audio_signal], length))
+        if length_1 is None:
+            return s_input[-1]
+
+        #return s_input[-1], length
+        logging.info(f"PREV DATA s_inp{s_input[-1]}, length {length_1}")
+        logging.info(f"NEW DATA s_inp{audio_signal}, length {length}")
+
         return audio_signal, length
+    
+
+
+
+
+
 
     def update_max_seq_length(self, seq_length: int, device):
         # Find global max audio length across all nodes
