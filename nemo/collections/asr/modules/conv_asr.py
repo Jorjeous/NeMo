@@ -281,7 +281,7 @@ class ConvASREncoder(NeuralModule, Exportable):
 
         s_input, length_1 = self.encoder(([audio_signal], length))
         if length_1 is None:
-            return s_input[-1]
+            pass#return s_input[-1]
 
         #return s_input[-1], length
         logging.warning(f"PREV DATA s_inp{s_input[-1]}, length {length_1}")
