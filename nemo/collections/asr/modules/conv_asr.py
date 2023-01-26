@@ -306,10 +306,10 @@ class ConvASREncoder(NeuralModule, Exportable):
          #   pass#return s_input[-1]
 
         #return s_input[-1], length
-        logging.warning(f"PREV DATA s_inp{s_input[-1]}, length {length_1}")
-        logging.warning(f"NEW DATA s_inp{audio_signal}, length {length}")
+        logging.warning(f"PREV DATA s_inp {s_input[-1]}, length {length}")
+        logging.warning(f"NEW DATA s_inp {audio_signal}, length {length}")
 
-        return audio_signal, length
+        return s_input[-1], length
 
 
 
