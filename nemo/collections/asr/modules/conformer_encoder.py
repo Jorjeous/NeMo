@@ -377,7 +377,7 @@ class ConformerEncoder(NeuralModule, StreamingEncoder, Exportable):
         if seq_length > self.max_audio_length:
             self.set_max_audio_length(seq_length)
 
-
+    #remove pos_enc if att none
     def set_max_audio_length(self, max_audio_length):
         """
         Sets maximum input length.

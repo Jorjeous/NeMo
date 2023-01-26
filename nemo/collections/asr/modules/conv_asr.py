@@ -267,7 +267,6 @@ class ConvASREncoder(NeuralModule, Exportable):
         max_audio_length: int = audio_signal.size(-1)
         #max_audio_length = audio_signal.size(1)
 
-
         if length is None:
             length = audio_signal.new_full(
                 (audio_signal.size(0),), max_audio_length, dtype=torch.int32, device=audio_signal.device
@@ -284,21 +283,16 @@ class ConvASREncoder(NeuralModule, Exportable):
             audio_signal, length = self.pre_encode(x=audio_signal,
                                                    lengths=length)
 
+        # if self.out_proj is not None:
+        #     logging.warning(f"FRWD pnt 2")
+        #     audio_signal = self.out_proj(audio_signal)
 
-        #audio_signal = torch.transpose(audio_signal, 1, 2)
-
-        #max_audio_length = audio_signal.size(1)
-
-        if self.out_proj is not None:
-            logging.warning(f"FRWD pnt 2")
-            audio_signal = self.out_proj(audio_signal)
-
-        if self.reduction_position == -1:
-            logging.warning(f"FRWD pnt 3")
-            audio_signal, length = self.reduction_subsampling(x=audio_signal, lengths=length)
+        # if self.reduction_position == -1:
+        #     logging.warning(f"FRWD pnt 3")
+        #     audio_signal, length = self.reduction_subsampling(x=audio_signal, lengths=length)
 
         logging.warning(f"FRWD pnt 4")
-        audio_signal = torch.transpose(audio_signal, 1, 2)
+        #audio_signal = torch.transpose(audio_signal, 1, 2)
 
         logging.warning(f"FRWD pnt 5")
         s_input, length_1 = self.encoder(([audio_signal], length))
@@ -306,11 +300,18 @@ class ConvASREncoder(NeuralModule, Exportable):
          #   pass#return s_input[-1]
 
         #return s_input[-1], length
-        logging.warning(f"PREV DATA s_inp {s_input[-1]}, length {length}")
+        logging.warning(f"PREV DATA s_inp {s_input[-1]}, length {length_1}")
         logging.warning(f"NEW DATA s_inp {audio_signal}, length {length}")
 
-        return s_input[-1], length
+        return audio_signal, length
 
+    def forward(self, audio_signal, length=None):
+        logging.warning(f"SUBSAMPLING NOT IN PROCESS")
+        s_input, length = self.encoder(([audio_signal], length))
+        if length is None:
+            return s_input[-1]
+
+        return s_input[-1], length
 
 
 
