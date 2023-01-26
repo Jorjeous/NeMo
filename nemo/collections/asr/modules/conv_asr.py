@@ -292,26 +292,26 @@ class ConvASREncoder(NeuralModule, Exportable):
         #     audio_signal, length = self.reduction_subsampling(x=audio_signal, lengths=length)
 
         logging.warning(f"FRWD pnt 4")
-        #audio_signal = torch.transpose(audio_signal, 1, 2)
+        audio_signal = torch.transpose(audio_signal, 1, 2)
 
         logging.warning(f"FRWD pnt 5")
-        s_input, length_1 = self.encoder(([audio_signal], length))
-        #if length_1 is None:
-         #   pass#return s_input[-1]
+        audio_signal, length = self.encoder(([audio_signal], length))
+        if length is None:
+            return audio_signal[-1]
 
         #return s_input[-1], length
-        logging.warning(f"PREV DATA s_inp {s_input[-1]}, length {length_1}")
+        #logging.warning(f"PREV DATA s_inp {s_input[-1]}, length {length_1}")
         logging.warning(f"NEW DATA s_inp {audio_signal}, length {length}")
 
-        return audio_signal, length
+        return audio_signal[-1], length
 
-    def forward(self, audio_signal, length=None):
-        logging.warning(f"SUBSAMPLING NOT IN PROCESS")
-        s_input, length = self.encoder(([audio_signal], length))
-        if length is None:
-            return s_input[-1]
-
-        return s_input[-1], length
+    # def forward(self, audio_signal, length=None):
+    #     logging.warning(f"SUBSAMPLING NOT IN PROCESS")
+    #     s_input, length = self.encoder(([audio_signal], length))
+    #     if length is None:
+    #         return s_input[-1]
+    #
+    #     return s_input[-1], length
 
 
 
