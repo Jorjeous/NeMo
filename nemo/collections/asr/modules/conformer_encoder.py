@@ -383,9 +383,10 @@ class ConformerEncoder(NeuralModule, StreamingEncoder, Exportable):
         Sets maximum input length.
         Pre-calculates internal seq_range mask.
         """
-        if self.self_attention_model == 'none':
-            return 
+
         self.max_audio_length = max_audio_length
+        if self.self_attention_model == 'none':
+            return
         device = next(self.parameters()).device
         self.pos_enc.extend_pe(max_audio_length, device)
 
