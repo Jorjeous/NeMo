@@ -262,15 +262,30 @@ class ConvASREncoder(NeuralModule, Exportable):
 
     @typecheck()
     def forward(self, audio_signal, length):
-        self.update_max_seq_length(seq_length=audio_signal.size(2), device=audio_signal.device)
-        #max_audio_length: int = audio_signal.size(-1)
+        self.update_max_seq_length(seq_length=audio_signal.size(2),
+                                   device=audio_signal.device)
+        max_audio_length: int = audio_signal.size(-1)
         #max_audio_length = audio_signal.size(1)
 
+
+        if length is None:
+            length = audio_signal.new_full(
+                (audio_signal.size(0),), max_audio_length, dtype=torch.int32, device=audio_signal.device
+            )
+
+        audio_signal = torch.transpose(audio_signal, 1, 2)
+        logging.warning(f"FRWD pnt 0")
+
         if isinstance(self.pre_encode, nn.Linear):
+            logging.warning(f"FRWD pnt 1.1")
             audio_signal = self.pre_encode(audio_signal)
         else:
-            logging.warning(f"FRWD pnt 1")
-            audio_signal, length = self.pre_encode(x=audio_signal, lengths=length)
+            logging.warning(f"FRWD pnt 1.2")
+            audio_signal, length = self.pre_encode(x=audio_signal,
+                                                   lengths=length)
+
+
+        audio_signal = torch.transpose(audio_signal, 1, 2)
 
         #max_audio_length = audio_signal.size(1)
 
