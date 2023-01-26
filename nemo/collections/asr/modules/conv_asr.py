@@ -285,7 +285,7 @@ class ConvASREncoder(NeuralModule, Exportable):
                                                    lengths=length)
 
 
-        audio_signal = torch.transpose(audio_signal, 1, 2)
+        #audio_signal = torch.transpose(audio_signal, 1, 2)
 
         #max_audio_length = audio_signal.size(1)
 
@@ -309,7 +309,7 @@ class ConvASREncoder(NeuralModule, Exportable):
         logging.warning(f"PREV DATA s_inp{s_input[-1]}, length {length_1}")
         logging.warning(f"NEW DATA s_inp{audio_signal}, length {length}")
 
-        #return audio_signal, length
+        return audio_signal, length
 
 
 
