@@ -134,6 +134,7 @@ class ConvASREncoder(NeuralModule, Exportable):
         frame_splicing: int = 1,
         init_mode: Optional[str] = 'xavier_uniform',
         quantize: bool = False,
+        flag: bool = False,
     ):
         super().__init__()
         if isinstance(jasper, ListConfig):
@@ -262,6 +263,11 @@ class ConvASREncoder(NeuralModule, Exportable):
 
     @typecheck()
     def forward(self, audio_signal, length):
+        if not self.flag:
+            self.flag = True
+            logging.warning(f"FRWRD pnt")
+        
+
         self.update_max_seq_length(seq_length=audio_signal.size(2),
                                    device=audio_signal.device)
         max_audio_length: int = audio_signal.size(-1)
@@ -273,13 +279,13 @@ class ConvASREncoder(NeuralModule, Exportable):
             )
 
         audio_signal = torch.transpose(audio_signal, 1, 2)
-        logging.warning(f"FRWD pnt 0")
+        #logging.warning(f"FRWD pnt 0")
 
         if isinstance(self.pre_encode, nn.Linear):
-            logging.warning(f"FRWD pnt 1.1")
+            #logging.warning(f"FRWD pnt 1.1")
             audio_signal = self.pre_encode(audio_signal)
         else:
-            logging.warning(f"FRWD pnt 1.2")
+            #logging.warning(f"FRWD pnt 1.2")
             audio_signal, length = self.pre_encode(x=audio_signal,
                                                    lengths=length)
 
@@ -291,18 +297,17 @@ class ConvASREncoder(NeuralModule, Exportable):
         #     logging.warning(f"FRWD pnt 3")
         #     audio_signal, length = self.reduction_subsampling(x=audio_signal, lengths=length)
 
-        logging.warning(f"FRWD pnt 4")
+        #logging.warning(f"FRWD pnt 4")
         audio_signal = torch.transpose(audio_signal, 1, 2)
 
-        logging.warning(f"FRWD pnt 5")
+        #logging.warning(f"FRWD pnt 5")
         audio_signal, length = self.encoder(([audio_signal], length))
         if length is None:
             return audio_signal[-1]
 
         #return s_input[-1], length
         #logging.warning(f"PREV DATA s_inp {s_input[-1]}, length {length_1}")
-        logging.warning(f"NEW DATA s_inp {audio_signal}, length {length}")
-
+        #logging.warning(f"NEW DATA s_inp {audio_signal}, length {length}")
         return audio_signal[-1], length
 
     # def forward(self, audio_signal, length=None):
