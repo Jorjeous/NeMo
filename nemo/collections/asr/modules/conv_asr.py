@@ -137,6 +137,7 @@ class ConvASREncoder(NeuralModule, Exportable):
         flag: bool = False,
     ):
         super().__init__()
+        self.flag = False
         if isinstance(jasper, ListConfig):
             jasper = OmegaConf.to_container(jasper)
 
@@ -266,7 +267,7 @@ class ConvASREncoder(NeuralModule, Exportable):
         if not self.flag:
             self.flag = True
             logging.warning(f"FRWRD pnt")
-        
+
 
         self.update_max_seq_length(seq_length=audio_signal.size(2),
                                    device=audio_signal.device)
