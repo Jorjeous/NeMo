@@ -475,17 +475,29 @@ class ConformerEncoder(NeuralModule, StreamingEncoder, Exportable):
             if self.att_mask is not None:
                 att_mask = att_mask[:, cache_len:]
 
-        for lth, layer in enumerate(self.layers):
-            audio_signal = layer(
-                x=audio_signal,
-                att_mask=att_mask,
-                pos_emb=pos_emb,
-                pad_mask=pad_mask,
-                cache_last_channel=cache_last_channel,
-                cache_last_time=cache_last_time,
-                cache_last_channel_next=cache_last_channel_next,
-                cache_last_time_next=cache_last_time_next,
-            )
+        if self.self_attention_model == 'none':
+            for lth, layer in enumerate(self.layers):
+                audio_signal = layer(
+                    x=audio_signal,
+                    att_mask=att_mask,
+                    pad_mask=pad_mask,
+                    cache_last_channel=cache_last_channel,
+                    cache_last_time=cache_last_time,
+                    cache_last_channel_next=cache_last_channel_next,
+                    cache_last_time_next=cache_last_time_next,
+                )
+        else:
+            for lth, layer in enumerate(self.layers):
+                audio_signal = layer(
+                    x=audio_signal,
+                    att_mask=att_mask,
+                    pos_emb=pos_emb,
+                    pad_mask=pad_mask,
+                    cache_last_channel=cache_last_channel,
+                    cache_last_time=cache_last_time,
+                    cache_last_channel_next=cache_last_channel_next,
+                    cache_last_time_next=cache_last_time_next,
+                )
 
             if self.reduction_position == lth:
                 audio_signal, length = self.reduction_subsampling(x=audio_signal, lengths=length)
