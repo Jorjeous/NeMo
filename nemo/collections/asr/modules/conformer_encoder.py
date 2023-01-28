@@ -462,6 +462,8 @@ class ConformerEncoder(NeuralModule, StreamingEncoder, Exportable):
 
         if self.self_attention_model == 'abs_pos':
             audio_signal, pos_emb = self.pos_enc(x=audio_signal)
+        elif self.self_attention_model == 'none':
+            pass
         else:
             audio_signal, pos_emb = self.pos_enc(x=audio_signal, cache_len=cache_len)
 
