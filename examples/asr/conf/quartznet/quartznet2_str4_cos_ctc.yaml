@@ -268,7 +268,7 @@ model:
     vocabulary: []
 
   decoding:
-    strategy: "greedy_batch" # can be greedy, greedy_batch, beam, tsd, alsd.
+    strategy: "greedy" # can be greedy, greedy_batch, beam, tsd, alsd.
 
     # greedy strategy config
     greedy:
