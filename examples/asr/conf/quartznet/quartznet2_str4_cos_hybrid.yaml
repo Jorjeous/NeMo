@@ -89,14 +89,25 @@ model:
 
     jasper:
 
+
     - dilation: [1]
       dropout: *dropout
-      filters: ${model.model_defaults.enc_hidden}
+      filters: 256
       kernel: [7]
-      repeat: *repeat
-      residual: true
+      repeat: 1
+      residual: false
       separable: *separable
-      stride: [1]
+      stride: [2]
+
+    - dilation: [ 1 ]
+      dropout: *dropout
+      filters: 256
+      kernel: [ 7 ]
+      repeat: 1
+      residual: false
+      separable: *separable
+      stride: [2]
+
 
     - dilation: [1]
       dropout: *dropout
@@ -297,6 +308,19 @@ model:
       score_norm: true
       tsd_max_sym_exp: 50  # for Time Synchronous Decoding
       alsd_max_target_len: 2.0  # for Alignment-Length Synchronous Decoding
+
+  # The section which would contain the decoder and decoding configs of the auxiliary CTC decoder
+  aux_ctc:
+    ctc_loss_weight: 0.3 # the weight used to combine the CTC loss with the RNNT loss
+    use_cer: false
+    ctc_reduction: 'mean_batch'
+    decoder:
+      _target_: nemo.collections.asr.modules.ConvASRDecoder
+      feat_in: null
+      num_classes: -1
+      vocabulary: []
+    decoding:
+      strategy: "greedy"
 
   loss:
     loss_name: "default"
